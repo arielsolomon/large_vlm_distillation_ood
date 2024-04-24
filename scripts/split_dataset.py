@@ -5,8 +5,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--data-root', type=str, required=True)
-parser.add_argument('--dataset-name', type=str, required=True, choices=["CaltechBirds", "Flower102", "Food101", "StanfordCars", "SUN397", "tiered-Image Net"])
+parser.add_argument('--data-root',  default='../Food101_data')#,type=str, required=True)
+parser.add_argument('--dataset-name', default='Food101')#,type=str, required=True, choices=["CaltechBirds", "Flower102", "Food101", "StanfordCars", "SUN397", "tiered-Image Net"])
 
 args = parser.parse_args()
 
@@ -26,7 +26,7 @@ for split in ["train", "val", "val_on_train"]:
     if not split_root.exists():
         os.mkdir(split_root)
     img_list = []
-    with open(f"data/{args.dataset_name}/{split}_data.txt", 'r') as f: # load image split info from our repo
+    with open(f"../data/{args.dataset_name}/{split}_data.txt", 'r') as f: # load image split info from our repo
         for line in f:
             line = line.strip()
             if len(line) == 0:
