@@ -7,7 +7,7 @@ import glob
 ''' step 1: scan image dataset
     step 2: for n images copy to val, val_train, open labels for val, val_train, train and put in the form:
     train/class_name/image_name'''
-root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/cifar10/images/'
+root = '/Data/federated_learning/large_vlm_distillation_ood/data/cifar10/images/'
 
 n = 500
 t_v_vt = ['train','val','val_on_train']
