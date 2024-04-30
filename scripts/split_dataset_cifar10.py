@@ -24,7 +24,7 @@ for dir in dir_list:
     for item in t_v_vt:
         if not os.path.exists(class_path.replace('images/',item+'/')):
             os.mkdir(class_path.replace('images/',item+'/'))
-    file_list = get_file_list(class_path, 'png')
+    file_list = get_file_list(class_path, 'jpg')
     val_files, val_on_train_files,train_files = file_list[:n], file_list[n:n+n], file_list[n+n::]
     for file1 in val_files:
         shutil.copyfile(file1, class_path.replace('images/',t_v_vt[1]+'/')+file1.split('/')[-1])
