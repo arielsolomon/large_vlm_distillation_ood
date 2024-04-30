@@ -34,9 +34,9 @@ for dir in dir_list:
     for choice in choices:
         name = cifar_refs[label_files[choice]]+'_'+str(choice)
         if name.split('_')[0]==dir.split('_')[1]:
-            mat_img.imsave(dest+dir+'/'+name+'.png', img_files[choice,:,:,:])
+            mat_img.imsave(dest+dir+'/'+name+'.jpg', img_files[choice,:,:,:])
             with open(dest + '/' + filename, 'a') as f:
-                f.write('val/'+dir+'/'+name+'.png'+'\n')
+                f.write('val/'+dir+'/'+name+'.jpg'+'\n')
         else:
             pass
 
