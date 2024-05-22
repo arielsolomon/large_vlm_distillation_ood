@@ -1,0 +1,25 @@
+How to prepare object detection data for distilation:
+
+
+create several folders:
+0_car
+1_dog
+2_humans
+ect'
+
+each image in folder should contain the name vehicle or no_vehicle and some index and jpg (easier for our case)
+
+train txt shold look like: 
+	
+	train/car/car_8983.jpg
+	train/dog/dog_8985.jpg
+	train/humans/humans_8986.jpg
+
+
+label2text should look like:
+
+	0_car 0 0_car
+	1_dog 1 1_dog
+	2_humans 1 1_humans
+	
+I should also prepare corrupted data
