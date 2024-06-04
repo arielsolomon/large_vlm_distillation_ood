@@ -19,12 +19,15 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 import models.imagenet as customized_models
+from tqdm import tqdm
 
 from custom_data_loader import CLIPImageDataset
 
 import numpy as np
 
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
+
+""" the torch resnet models are downloaded from https://download.pytorch.org/models/"""
 
 # Models
 default_model_names = sorted(name for name in models.__dict__
@@ -45,7 +48,7 @@ model_names = default_model_names + customized_models_names
 parser = argparse.ArgumentParser()
 
 # Datasets
-parser.add_argument('-d', '--data', default='coco-2017/', type=str)
+parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco-2017/', type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 # Optimization options
@@ -73,12 +76,12 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 # Checkpoints
-parser.add_argument('-c', '--checkpoint', default='coco_2017_8cls_pt', type=str, metavar='PATH',
+parser.add_argument('-c', '--checkpoint', default='coco_2017_8cls_pt_resnet50', type=str, metavar='PATH',
                     help='path to save checkpoint (default: checkpoint)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 # Architecture
-parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet50',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
@@ -530,8 +533,8 @@ def main():
 
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, optimizer.param_groups[0]['lr']))
         
-        for _ in range(args.repeat_epochs):
-            train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, args.epochs, use_cuda, train_transform, 
+        for _ in tqdm(range(args.repeat_epochs)):
+            train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, args.epochs, use_cuda, train_transform,
                                         train_text_features, clip_model, clip_preprocess, clip_device,
                                         prompt_learner=prompt_learner,
                                         text_encoder=text_encoder,
