@@ -42,7 +42,7 @@ def copypaste_collate_fn(batch):
 
 def get_dataset(is_train, args):
     image_set = "train" if is_train else "val"
-    num_classes, mode = {"coco": (8, "instances"), "coco_kp": (2, "person_keypoints")}[args.dataset]
+    num_classes, mode = {"coco": (91, "instances"), "coco_kp": (2, "person_keypoints")}[args.dataset]
     with_masks = "mask" in args.model
     ds = get_coco(
         root=args.data_path,
@@ -92,7 +92,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument(
         "--lr",
-        default=0.02,
+        default=0.002,
         type=float,
         help="initial learning rate, 0.02 is the default value for training on 8 gpus and 2 images_per_gpu",
     )
@@ -245,6 +245,10 @@ def main(args):
     model = torchvision.models.get_model(
         args.model, weights=args.weights, weights_backbone=args.weights_backbone, num_classes=num_classes, **kwargs
     )
+    # for now I passed the bkbone from torchvision to my distilized model
+    # model = torchvision.models.resnet50(pretrained=True)
+
+
     model.to(device)
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
