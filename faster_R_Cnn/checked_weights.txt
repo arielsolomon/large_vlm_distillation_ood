@@ -1,0 +1,28 @@
+﻿Resnet model:
+
+Layer Name: layer3.5.conv1.weight n -0.10669095069169998
+Layer Name: layer3.5.bn1.weight n 0.9837971925735474
+Layer Name: layer3.5.conv2.weight n -0.012232543900609016
+Layer Name: layer3.5.bn2.weight n 0.9809775948524475
+Layer Name: layer3.5.conv3.weight n -0.005092545412480831
+Layer Name: layer3.5.bn3.weight n 0.9955872893333435
+
+
+
+original model:
+
+Layer Name: backbone.body.layer3.5.conv1.weight n -0.03236885368824005
+Layer Name: backbone.body.layer3.5.bn1.weight n 0.2151240110397339
+Layer Name: backbone.body.layer3.5.conv2.weight n 0.0030866903252899647
+Layer Name: backbone.body.layer3.5.bn2.weight n 0.20576420426368713
+Layer Name: backbone.body.layer3.5.conv3.weight n -0.0028622481040656567
+Layer Name: backbone.body.layer3.5.bn3.weight n 0.0704227164387703
+
+copied layers model:
+
+Layer Name: backbone.body.layer3.5.conv1.weight n -0.10669095069169998
+Layer Name: backbone.body.layer3.5.bn1.weight n 0.9837971925735474
+Layer Name: backbone.body.layer3.5.conv2.weight n -0.012232543900609016
+Layer Name: backbone.body.layer3.5.bn2.weight n 0.9809775948524475
+Layer Name: backbone.body.layer3.5.conv3.weight n -0.005092545412480831
+Layer Name: backbone.body.layer3.5.bn3.weight n 0.9955872893333435
