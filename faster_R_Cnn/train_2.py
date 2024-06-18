@@ -16,6 +16,7 @@ from engine import evaluate, train_one_epoch
 from group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 from torchvision.transforms import InterpolationMode
 from transforms import SimpleCopyPaste
+from torch.utils.tensorboard import SummaryWriter as sm
 
 
 def copypaste_collate_fn(batch):
@@ -58,7 +59,7 @@ def get_args_parser(add_help=True):
 
     parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
 
-    parser.add_argument("--data-path", default="/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco_2017_8cls_mini/", type=str, help="dataset path")
+    parser.add_argument("--data-path", default="/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco_2017_8cls/", type=str, help="dataset path")
     parser.add_argument(
         "--dataset",
         default="coco",
@@ -68,9 +69,9 @@ def get_args_parser(add_help=True):
     parser.add_argument("--model", default="fasterrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
-        "-b", "--batch-size", default=2, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
+        "-b", "--batch-size", default=8, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
     )
-    parser.add_argument("--epochs", default=26, type=int, metavar="N", help="number of total epochs to run")
+    parser.add_argument("--epochs", default=200, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
         "-j", "--workers", default=4, type=int, metavar="N", help="number of data loading workers (default: 4)"
     )
@@ -113,14 +114,14 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     )
-    parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
-    parser.add_argument("--output-dir", default="outdir", type=str, help="path to save outputs")
+    parser.add_argument("--print-freq", default=100, type=int, help="print frequency")
+    parser.add_argument("--output-dir", default="outdir_new_coco_dataset_17_06", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
     parser.add_argument("--aspect-ratio-group-factor", default=3, type=int)
     parser.add_argument("--rpn-score-thresh", default=None, type=float, help="rpn score threshold for faster-rcnn")
     parser.add_argument(
-        "--trainable-backbone-layers", default=None, type=int, help="number of trainable layers of backbone"
+        "--trainable-backbone-layers", default=5, type=int, help="number of trainable layers of backbone"
     )
     parser.add_argument(
         "--data-augmentation", default="hflip", type=str, help="data augmentation policy (default: hflip)"
@@ -180,7 +181,8 @@ def main(args):
     utils.init_distributed_mode(args)
     print(args)
 
-    device = torch.device(args.device)
+    #device = torch.device(args.device)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if args.use_deterministic_algorithms:
         torch.use_deterministic_algorithms(True)
