@@ -48,7 +48,7 @@ model_names = default_model_names + customized_models_names
 parser = argparse.ArgumentParser()
 
 # Datasets
-parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco-2017/', type=str)
+parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco2017/', type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 # Optimization options
@@ -60,7 +60,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--train-batch', default=256, type=int, metavar='N',
                     help='train batchsize (default: 256)')
-parser.add_argument('--test-batch', default=200, type=int, metavar='N',
+parser.add_argument('--test-batch', default=64, type=int, metavar='N',
                     help='test batchsize (default: 200)')
 parser.add_argument('--skip-val', action='store_true', help='skip validation during training')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
@@ -76,7 +76,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 # Checkpoints
-parser.add_argument('-c', '--checkpoint', default='coco_2017_8cls_pt_resnet50', type=str, metavar='PATH',
+parser.add_argument('-c', '--checkpoint', default='coco_2017_full_reduced_humans_resnet50', type=str, metavar='PATH',
                     help='path to save checkpoint (default: checkpoint)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -101,7 +101,7 @@ parser.add_argument('--clip-align-image-mse', default=True, action='store_true',
 parser.add_argument('--clip-align-image-mse-unnorm', action='store_true', help="Whether to use L-mse (unnormalized version)")
 parser.add_argument('--clip-align-image-contrastive', default=True, action='store_true', help="Whether to use L-im-cst")
 parser.add_argument('--clip-align-image-contrastive-mode', type=str, default='bidirectional', choices=['single', 'bidirectional'])
-parser.add_argument('--label-path', type=str, default=None, help='coco-2017/label2text.txt')
+parser.add_argument('--label-path', type=str, default=None, help='coco2017/label2text.txt')
 parser.add_argument('--temperature', type=float, default=0.07, help='Temperature')
 parser.add_argument('--few-shot-num', type=int, default=0, help='Number of few-shot examples')
 parser.add_argument('--few-shot-method', type=str, default='None', help='Few-shot mode, support retrieval or finetune')
@@ -977,11 +977,11 @@ def test(val_loader, model, criterion, epoch, use_cuda,
     print("Mean accuracy per class {}".format(mean_acc))
     return (losses.avg, mean_acc)
 
-def save_checkpoint(state, is_best, checkpoint='checkpoint', filename='checkpoint.pth'):
+def save_checkpoint(state, is_best, checkpoint='checkpoint', filename='checkpoint_coco.pth'):
     filepath = os.path.join(checkpoint, filename)
     torch.save(state, filepath)
     if is_best:
-        shutil.copyfile(filepath, os.path.join(checkpoint, 'model_best.pth'))
+        shutil.copyfile(filepath, os.path.join(checkpoint, 'model_best_coco.pth'))
 
 def adjust_learning_rate(optimizer, epoch, scheduler=None):
     global state

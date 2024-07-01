@@ -48,7 +48,7 @@ model_names = default_model_names + customized_models_names
 parser = argparse.ArgumentParser()
 
 # Datasets
-parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/coco-2017/', type=str)
+parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/cifar10/', type=str)
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 # Optimization options
@@ -76,7 +76,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 # Checkpoints
-parser.add_argument('-c', '--checkpoint', default='coco_2017_8cls_pt_resnet50', type=str, metavar='PATH',
+parser.add_argument('-c', '--checkpoint', default='coruption_severity/impulse_noise1', type=str, metavar='PATH',
                     help='path to save checkpoint (default: checkpoint)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -85,7 +85,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet50',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
-                        ' (default: resnet18)')
+                        ' (default: resnet50)')
 # Openset-specific
 parser.add_argument('--use-clip', action='store_true', help='whether to use CLIP model')
 parser.add_argument('--clip-repo', type=str, default='clip', choices=['clip', 'open_clip'])
@@ -528,6 +528,7 @@ def main():
         return
 
     # Train and validation
+    print('\nExperiment name:  impulse_noise.npy\n')
     for epoch in range(start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch, scheduler)
 
