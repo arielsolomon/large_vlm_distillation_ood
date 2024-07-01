@@ -5,8 +5,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--data-root', type=str, required=True)
-parser.add_argument('--dataset-name', type=str, required=True, choices=["CaltechBirds", "Flower102", "Food101", "StanfordCars", "SUN397", "tiered-Image Net"])
+parser.add_argument('--data-root', default="/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/Flower102/",type=str, required=True)
+parser.add_argument('--dataset-name', default="Flower102",type=str, required=True, choices=["Flower102", "Food101", "StanfordCars", "SUN397", "tiered-Image Net"])
 
 args = parser.parse_args()
 
