@@ -12,7 +12,7 @@ import os
 from PIL import Image
 
 
-root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet18_cifar_classification/data/'
+root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet16_cifar_classification/data/'
 CIFAR10_C_DATA_PATH = root + 'cifar10_c/CIFAR-10-C/'
 corrupted_classes = [cls[:-4] for cls in os.listdir(CIFAR10_C_DATA_PATH)]
 
@@ -53,11 +53,11 @@ class CorruptedCIFAR10C(Dataset):
         return img, target
 def main(c_class):
     print('\nFor corruption data: ', c_class.split('/')[-1][:-4], '\n\n')
-    root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet18_cifar_classification/data/'
+    root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet_cifar_classification/data/'
     # Paths to the datasets
     CIFAR10_PATH = root + 'cifar10/'
 
-    CIFAR10_C_LABELS_PATH = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet18_cifar_classification/data/cifar10_c/labels.npy'
+    CIFAR10_C_LABELS_PATH = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet_cifar_classification/data/cifar10_c/labels.npy'
     CIFAR10_C_DATA_PATH = c_class
     print(CIFAR10_C_DATA_PATH)
 
