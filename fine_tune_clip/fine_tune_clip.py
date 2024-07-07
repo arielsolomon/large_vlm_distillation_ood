@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm import tqdm
 from dataloaders.cifar10_loader import load_raw_data
-from trainers.fine_tune_train import save_iteration_results
+from fine_tune_train import save_iteration_results
 
 
 def get_command_line_arguments(parser):
@@ -22,15 +22,12 @@ def get_command_line_arguments(parser):
     Returns:
     argparse.Namespace: Parsed arguments
     """
-    parser.add_argument("--data-path", type=str, default='/home/user1/ariel/fed_learn/datasets/cifar10/',
-                        help="dir path for datafolder")
-
-    parser.add_argument("--ood-data-path", type=str, default='/home/user1/ariel/fed_learn/datasets/cifar10/',
+    parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
                         help="dir path for datafolder")
 
     parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
 
-    parser.add_argument("--use-cuda", type=bool, default=False,
+    parser.add_argument("--use-cuda", type=bool, default=True,
                         help='Use GPU. Use cpu if not')
 
     args = parser.parse_args()
@@ -38,7 +35,7 @@ def get_command_line_arguments(parser):
 
 
 class ImageTitleDatasetWrapper(Dataset):
-    def __init__(self, dataset, list_txt, preprocess, ood=False):
+    def __init__(self, dataset: Dataset, list_txt: list[str], preprocess, ood=False):
         # Initialize image paths and corresponding texts
         self._dataset = dataset
 
@@ -121,7 +118,7 @@ def main(args):
         "cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu"
     )
 
-    model, preprocess = clip.load("ViT-L/14", device=device, jit=False)
+    model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
 
     # Load data loaders for training and testing
     train_set, validation_set, test_set, classes = load_raw_data(root=args.data_path)
@@ -176,8 +173,7 @@ def main(args):
 
 
 def train_epoch(device, loss_img, loss_txt, num_epochs, optimizer,
-                train_loader, validation_loaders, model, epoch):
-                #: dict[str, (DataLoader, list[float])], model, epoch):
+                train_loader, validation_loaders: dict[str, (DataLoader, list[float])], model, epoch):
     epoch_loss = 0.0
     pbar = tqdm(train_loader, total=len(train_loader))
     model.train()
