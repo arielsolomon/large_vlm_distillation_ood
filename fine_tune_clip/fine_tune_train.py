@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from trainers.simple_trainer import train, test
+from simple_trainer import train, test
 
 
 def fine_tune_train(net: torch.nn.Module,

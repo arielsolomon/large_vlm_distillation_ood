@@ -11,7 +11,7 @@ from torchvision.transforms import ToTensor
 from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 import os
-
+from PIL import Image
 from fine_tune_train import save_iteration_results
 import torchvision.models as models
 
@@ -39,28 +39,36 @@ def get_command_line_arguments(parser):
 
 class ImageTitleDatasetWrapper(Dataset):
     def __init__(self, dataset: Dataset, list_txt: list[str], preprocess, ood=False):
-        # Initialize image paths and corresponding texts
         self._dataset = dataset
-
         self.tokenized_title_dict = {c: clip.tokenize(f"a photo of a {c}") for c in list_txt}
         self.tokenized_title_list = [clip.tokenize(f"a photo of a {c}") for c in list_txt]
-        self._transform = transforms.Compose([transforms.ToTensor(),
-                                              transforms.ColorJitter(contrast=0.5, brightness=1.0),
-                                              transforms.ToPILImage()])
-        # Load the model
         self._preprocess = preprocess
         self._ood = ood
+        self._transform = transforms.Compose([
+            transforms.ColorJitter(contrast=0.5, brightness=1.0),
+            transforms.ToTensor()
+        ])
 
     def __len__(self):
         return len(self._dataset)
 
-    def __getitem__(self, idx, ood=False):
+    def __getitem__(self, idx):
         image, label = self._dataset[idx]
-        image = self._transform(image) if self._ood else image
+
+        # Ensure image is in PIL format before transforming
+        if isinstance(image, torch.Tensor):
+            image = transforms.ToPILImage()(image)
+
+        if self._ood:
+            image = self._transform(image)
+
+        # Convert image to the format required by preprocess
+        if not isinstance(image, Image.Image):
+            image = transforms.ToPILImage()(image)
+
         image = self._preprocess(image)
         title = self.tokenized_title_list[label]
         return image, label, title
-
 
 def convert_models_to_fp32(model):
     for p in model.parameters():
@@ -115,21 +123,25 @@ def freeze_embed(model):
     for n, p in model.named_parameters():
         p.requires_grad = n not in freeze_list
 
+def save_model(model, path):
+    torch.save(model, path)
+    print(f'Model saved to {path}')
 
 def main(args):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset_dir = "/Data/federated_learning/large_vlm_distillation_ood/Resnet18_classification/car_data/car_data/"
     model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
+    batch_size = 32
 
     # Load data loaders for training and testing
-    #train_set, validation_set, test_set, classes = load_raw_data(root=args.data_path)
-    train_dataset = ImageFolder(dataset_dir+'train/', transform=ToTensor())
-    test_dataset = ImageFolder(dataset_dir+'test/', transform=ToTensor())
-    train_classes = os.listdir(dataset_dir+'train/')
-    test_classes = os.listdir(dataset_dir+'test/')
+    train_dataset = ImageFolder(dataset_dir + 'train/')
+    test_dataset = ImageFolder(dataset_dir + 'test/')
+    train_classes = os.listdir(dataset_dir + 'train/')
+    test_classes = os.listdir(dataset_dir + 'test/')
+
     random_seed = 42
-    torch.manual_seed(random_seed);
+    torch.manual_seed(random_seed)
     val_percent = 0.1
     val_size = int(val_percent * len(train_dataset))
     train_size = len(train_dataset) - val_size
@@ -140,9 +152,9 @@ def main(args):
     train_set_ood = ImageTitleDatasetWrapper(train_dataset, train_classes, preprocess, ood=True)
     validation_set_original = ImageTitleDatasetWrapper(test_dataset, test_classes, preprocess)
     validation_set_ood = ImageTitleDatasetWrapper(test_dataset, test_classes, preprocess, ood=True)
-    # test_set = ImageTitleDatasetWrapper(test_set, classes, preprocess)
-    train_loader = DataLoader(train_set_original, batch_size=64, shuffle=True)
-    train_loader_ood = DataLoader(train_set_ood, batch_size=64, shuffle=True)
+
+    train_loader = DataLoader(train_set_original, batch_size=batch_size, shuffle=True)
+    train_loader_ood = DataLoader(train_set_ood, batch_size=batch_size, shuffle=True)
     validation_loader = DataLoader(validation_set_original, batch_size=512, shuffle=False)
     validation_loader_ood = DataLoader(validation_set_ood, batch_size=512, shuffle=False)
     # test_loader = DataLoader(test_set, batch_size=512, shuffle=False)
@@ -185,7 +197,7 @@ def main(args):
         epoch_loss = train_epoch_fn(model, epoch)
         print('Epoch', epoch, 'loss', epoch_loss)
 
-
+    save_model(model, args.save_path)
 def train_epoch(device, loss_img, loss_txt, num_epochs, optimizer,
                 train_loader, validation_loaders: dict[str, (DataLoader, list[float])], model, epoch):
     epoch_loss = 0.0
@@ -230,11 +242,14 @@ def train_iteration(batch, device, loss_img, loss_txt, model, optimizer):
         convert_models_to_fp32(model)
         optimizer.step()
         convert_models_to_mix(model)
+
     return float(total_loss)
 
 
 # Entry point
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use CLIP for few shot")
+    parser.add_argument("--save-path", type=str, default="./fine_tuned_clip.pt", help="Path to save the fine-tuned model")
+
     args = get_command_line_arguments(parser)
     main(args)
