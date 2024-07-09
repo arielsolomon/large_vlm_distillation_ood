@@ -8,8 +8,31 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm import tqdm
-from dataloaders.cifar10_loader import load_raw_data, load_raw_dataC
+from dataloaders.cifar10_loader import load_raw_data
 from trainers.fine_tune_train import save_iteration_results
+
+
+def get_command_line_arguments(parser):
+    """
+    Parse command-line arguments.
+
+    Parameters:
+    parser (argparse.ArgumentParser): Argument parser object
+
+    Returns:
+    argparse.Namespace: Parsed arguments
+    """
+    parser.add_argument("--data-path", type=str, default="/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet_classification_on_s_cars_dataset/s_cars_ood/train/",
+                        help="dir path for datafolder")
+
+    parser.add_argument("--batch-size", type=int, default="32", help="Number of images in train batch")
+
+    parser.add_argument("--use-cuda", type=bool, default=True,
+                        help='Use GPU. Use cpu if not')
+
+    args = parser.parse_args()
+    return args
+
 
 class ImageTitleDatasetWrapper(Dataset):
     def __init__(self, dataset, list_txt, preprocess, ood=False):
@@ -34,66 +57,6 @@ class ImageTitleDatasetWrapper(Dataset):
         image = self._preprocess(image)
         title = self.tokenized_title_list[label]
         return image, label, title
-
-
-def convert_models_to_fp32(model):
-    for p in model.parameters():
-        p.data = p.data.float()
-        if p.grad is not None:
-            p.grad.data = p.grad.data.float()
-
-
-def convert_models_to_mix(model):
-    clip.model.convert_weights(model)
-
-def get_command_line_arguments(parser):
-    """
-    Parse command-line arguments.
-
-    Parameters:
-    parser (argparse.ArgumentParser): Argument parser object
-
-    Returns:
-    argparse.Namespace: Parsed arguments
-    """
-    parser.add_argument("--data-path", type=str, default='/home/user1/ariel/fed_learn/datasets/cifar10/',
-                        help="dir path for datafolder")
-
-    parser.add_argument("--ood-data-path", type=str, default='/home/user1/ariel/fed_learn/datasets/cifar10_c/',
-                        help="dir path for ood dataloader")
-
-    parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
-
-    parser.add_argument("--use-cuda", type=bool, default=True,
-                        help='Use GPU. Use cpu if not')
-
-    args = parser.parse_args()
-    return args
-
-
-# class ImageTitleDatasetWrapper(Dataset):
-#     def __init__(self, dataset, list_txt, preprocess, ood=False):
-#         # Initialize image paths and corresponding texts
-#         self._dataset = dataset
-#
-#         self.tokenized_title_dict = {c: clip.tokenize(f"a photo of a {c}") for c in list_txt}
-#         self.tokenized_title_list = [clip.tokenize(f"a photo of a {c}") for c in list_txt]
-#         self._transform = transforms.Compose([transforms.ToTensor(),
-#                                               transforms.ColorJitter(contrast=0.5, brightness=1.0),
-#                                               transforms.ToPILImage()])
-#         # Load the model
-#         self._preprocess = preprocess
-#         self._ood = ood
-#
-#     def __len__(self):
-#         return len(self._dataset)
-#
-#     def __getitem__(self, idx, ood=False):
-#         image, label = self._dataset[idx]
-#         image = self._transform(image) if self._ood else image
-#         image = self._preprocess(image)
-#         title = self.tokenized_title_list[label]
-#         return image, label, title
 
 
 def convert_models_to_fp32(model):
@@ -155,25 +118,22 @@ def main(args):
         "cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu"
     )
 
-    model, preprocess = clip.load("ViT-L/14", device=device, jit=False)
-    print(f'\nLoaded model, starting to load datasets\n')
+    model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
+
     # Load data loaders for training and testing
-    train_set, validation_set, _, classes = load_raw_data(root=args.data_path)
+    # create new dataset for
+    train_set, validation_set, test_set, classes = load_raw_data(root=args.data_path)
     train_set_original = ImageTitleDatasetWrapper(train_set, classes, preprocess)
+    train_set_ood = ImageTitleDatasetWrapper(train_set, classes, preprocess, ood=True)
     validation_set_original = ImageTitleDatasetWrapper(validation_set, classes, preprocess)
-    train_set_ood_orig,validation_set_ood_orig, test_set_orig, classes= load_raw_dataC(args.ood_data_path)
-    train_set_ood = ImageTitleDatasetWrapper(train_set_ood_orig, classes, preprocess, ood=False)
-
-    validation_set_ood = ImageTitleDatasetWrapper(validation_set_ood_orig, classes, preprocess, ood=False)
-
-    #validation_set_ood = load_raw_dataC(args.ood_data_path)
-    test_set = ImageTitleDatasetWrapper(test_set_orig, classes, preprocess)
+    validation_set_ood = ImageTitleDatasetWrapper(validation_set, classes, preprocess, ood=True)
+    test_set = ImageTitleDatasetWrapper(test_set, classes, preprocess)
     train_loader = DataLoader(train_set_original, batch_size=64, shuffle=True)
     train_loader_ood = DataLoader(train_set_ood, batch_size=64, shuffle=True)
     validation_loader = DataLoader(validation_set_original, batch_size=512, shuffle=False)
     validation_loader_ood = DataLoader(validation_set_ood, batch_size=512, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=512, shuffle=False)
-    print(f'\nFinished loading datasets')
+    # test_loader = DataLoader(test_set, batch_size=512, shuffle=False)
+
     # Evaluate model - Baseline Accuracy
     model.eval()
     val_acc_baseline = evaluate(validation_loader, model, device)
@@ -215,7 +175,6 @@ def main(args):
 
 def train_epoch(device, loss_img, loss_txt, num_epochs, optimizer,
                 train_loader, validation_loaders, model, epoch):
-                #: dict[str, (DataLoader, list[float])], model, epoch):
     epoch_loss = 0.0
     pbar = tqdm(train_loader, total=len(train_loader))
     model.train()
@@ -233,7 +192,7 @@ def train_epoch(device, loss_img, loss_txt, num_epochs, optimizer,
             save_iteration_results(accuracy_list_on_standard_data=validation_loaders['original'][1],
                                    accuracy_list_on_ood_data=validation_loaders['OOD'][1])
         pbar.set_description(s + f"Loss: {iteration_loss:.4f}")
-    torch.save(model, 'Clip_fine_tuned.pth')
+
     return epoch_loss
 
 
