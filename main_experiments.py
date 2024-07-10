@@ -25,6 +25,10 @@ from custom_data_loader import CLIPImageDataset
 import numpy as np
 
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
+import sys
+
+sys.path.append('../faster_Rcnn')
+from train_faster_rcnn import main
 
 # Models
 default_model_names = sorted(name for name in models.__dict__
@@ -45,24 +49,26 @@ model_names = default_model_names + customized_models_names
 parser = argparse.ArgumentParser()
 
 # Datasets
-parser.add_argument('-d', '--data', default='/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/Flower102/', type=str)
+parser.add_argument('-d', '--data', default='path to dataset', type=str)
+
+parser.add_argument("--go_OB", default="True", type=bool, help="go to train fasterRcnn")
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 # Optimization options
-parser.add_argument('--epochs', default=20, type=int, metavar='N',
+parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--repeat-epochs', default=1, type=int, metavar='N',
                     help='repeat training batch in the same epoch')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--train-batch', default=32, type=int, metavar='N',
+parser.add_argument('--train-batch', default=256, type=int, metavar='N',
                     help='train batchsize (default: 256)')
 parser.add_argument('--test-batch', default=200, type=int, metavar='N',
                     help='test batchsize (default: 200)')
 parser.add_argument('--skip-val', action='store_true', help='skip validation during training')
-parser.add_argument('--lr', '--learning-rate', default=0.05, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate')
-parser.add_argument('--onecyclelr',default=None, action='store_true', help='use onecyclelr')
+parser.add_argument('--onecyclelr', action='store_true', help='use onecyclelr')
 parser.add_argument('--drop', '--dropout', default=0, type=float,
                     metavar='Dropout', help='Dropout ratio')
 parser.add_argument('--schedule', type=int, nargs='+', default=[30, 60],
@@ -73,16 +79,16 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 # Checkpoints
-parser.add_argument('-c', '--checkpoint', default='Flowers102_datasets', type=str, metavar='PATH',
+parser.add_argument('-c', '--checkpoint', default='checkpoint', type=str, metavar='PATH',
                     help='path to save checkpoint (default: checkpoint)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 # Architecture
-parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet50',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
-                        ' (default: resnet50)')
+                        ' (default: resnet18)')
 # Openset-specific
 parser.add_argument('--use-clip', action='store_true', help='whether to use CLIP model')
 parser.add_argument('--clip-repo', type=str, default='clip', choices=['clip', 'open_clip'])
@@ -100,8 +106,8 @@ parser.add_argument('--clip-align-image-contrastive', action='store_true', help=
 parser.add_argument('--clip-align-image-contrastive-mode', type=str, default='bidirectional', choices=['single', 'bidirectional'])
 parser.add_argument('--label-path', type=str, default=None, help='Path to label2text.txt')
 parser.add_argument('--temperature', type=float, default=0.07, help='Temperature')
-parser.add_argument('--few-shot-num', type=int, default=20, help='Number of few-shot examples')
-parser.add_argument('--few-shot-method', type=str, default='finetune', help='Few-shot mode, support retrieval or finetune')
+parser.add_argument('--few-shot-num', type=int, default=0, help='Number of few-shot examples')
+parser.add_argument('--few-shot-method', type=str, default='None', help='Few-shot mode, support retrieval or finetune')
 parser.add_argument('--prompt-learner', action='store_true', help='Whether to use prompt learner (CoOp)')
 parser.add_argument('--prompt-learner-nctx', type=int, default=8, help='Number of CoOp context tokens')
 # Miscs
@@ -188,7 +194,6 @@ def main():
         
     # Data loading code
     traindir = os.path.join(args.data, 'train')
-    print('\nTrain dir: ', traindir)
     valdir = os.path.join(args.data, 'val')
     val_on_train_dir = os.path.join(args.data, 'val_on_train')
     
@@ -560,12 +565,6 @@ def main():
                                         target_remap=test_target_remap,
                                         few_shot_features=few_shot_features, support_set_idx=support_set_idx,
                                         prompt_learner=prompt_learner, text_encoder=text_encoder, prompt_mode='test')
-            if test_loss==None:
-                print('test loss is None')
-            elif test_acc==None:
-                print('test accuracy is None')
-            else:
-                pass
             val_on_train_acc = 0.0
             if (args.epochs - epoch <= 5) and (val_on_train_loader is not None):
                 # accuracy on unseen samples whose labels belong to the training set
@@ -598,7 +597,7 @@ def main():
                 }
             if prompt_learner is not None:
                 save_dict['prompt_learner'] = prompt_learner.state_dict()
-            save_checkpoint(save_dict, is_best, checkpoint=args.checkpoint)
+            best_model = save_checkpoint(save_dict, is_best, checkpoint=args.checkpoint)
 
     logger.close()
     logger.plot()
@@ -606,6 +605,11 @@ def main():
 
     print('Best acc:')
     print(best_acc)
+    if args.go_OB:
+        main(args.data_path=..., args.device=..., args.batch_size=, args.epochs=50, args.output_dir=..., )
+
+
+
 
 def train(train_loader, model, criterion, optimizer, epoch, total_epochs, use_cuda, 
           train_transform, 
@@ -973,8 +977,8 @@ def test(val_loader, model, criterion, epoch, use_cuda,
         bar.next()
     bar.finish()
     
-    # avg_accuracy_per_class = [100.0 * x[0] / x[1] for x in avg_accuracy_per_class if x[1] > 0]
-    # print("Average accuracy per class: {}".format(avg_accuracy_per_class))
+    avg_accuracy_per_class = [100.0 * x[0] / x[1] for x in avg_accuracy_per_class if x[1] > 0]
+    print("Average accuracy per class: {}".format(avg_accuracy_per_class))
     mean_acc = np.mean(avg_accuracy_per_class)
     print("Mean accuracy per class {}".format(mean_acc))
     return (losses.avg, mean_acc)
@@ -984,6 +988,7 @@ def save_checkpoint(state, is_best, checkpoint='checkpoint', filename='checkpoin
     torch.save(state, filepath)
     if is_best:
         shutil.copyfile(filepath, os.path.join(checkpoint, 'model_best.pth'))
+        return checkpoint
 
 def adjust_learning_rate(optimizer, epoch, scheduler=None):
     global state
