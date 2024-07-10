@@ -27,8 +27,10 @@ import numpy as np
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
 import sys
 
-sys.path.append('../faster_Rcnn')
-from train_faster_rcnn import main
+
+from faster_Rcnn.train_faster_rcnn  import main as main_faster
+from faster_Rcnn.train_faster_rcnn import get_args_parser
+args_faster = get_args_parser().parse_args()
 
 # Models
 default_model_names = sorted(name for name in models.__dict__
@@ -145,7 +147,7 @@ if use_cuda:
 
 best_acc = 0  # best test accuracy
 
-def main():
+def main(main_faster, args_faster):
     global best_acc
     start_epoch = args.start_epoch  # start from epoch 0 or last checkpoint epoch
 
@@ -606,7 +608,9 @@ def main():
     print('Best acc:')
     print(best_acc)
     if args.go_OB:
-        main(args.data_path=..., args.device=..., args.batch_size=, args.epochs=50, args.output_dir=..., )
+        main_faster(args_faster.data_path="/Data/federated_learning/large_vlm_distillation_ood/faster_Rcnn/coco_dataset_8cls_mini/",\
+            args_faster.device='cude', args_faster.batch_size=32, args_faster.epochs=50, args_faster.output_dir="/Data/federated_learning/\
+            large_vlm_distillation_ood/faster_Rcnn/test")
 
 
 
