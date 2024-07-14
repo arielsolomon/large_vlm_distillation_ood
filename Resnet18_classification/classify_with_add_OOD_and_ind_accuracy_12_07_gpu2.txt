@@ -1,0 +1,272 @@
+cuda:0
+NVIDIA GeForce RTX 2080 Ti
+Epoch 1, duration: 57.36 s, loss: 4.7878, Train acc: 6.33
+Test ood acc: 0.00
+Test acc_ind: 17.79
+Epoch 2, duration: 215.36 s, loss: 2.3994, Train acc: 43.73
+Test ood acc: 0.00
+Test acc_ind: 64.37
+Epoch 3, duration: 215.26 s, loss: 0.9172, Train acc: 77.43
+Test ood acc: 0.31
+Test acc_ind: 71.36
+Epoch 4, duration: 216.25 s, loss: 0.5374, Train acc: 86.43
+Test ood acc: 0.93
+Test acc_ind: 82.16
+Epoch 5, duration: 216.10 s, loss: 0.3491, Train acc: 91.06
+Test ood acc: 0.62
+Test acc_ind: 83.78
+Epoch 6, duration: 216.53 s, loss: 0.2419, Train acc: 94.23
+Test ood acc: 2.80
+Test acc_ind: 86.14
+Epoch 7, duration: 215.34 s, loss: 0.1239, Train acc: 97.43
+Test ood acc: 8.07
+Test acc_ind: 91.94
+Epoch 8, duration: 215.55 s, loss: 0.0914, Train acc: 98.54
+Test ood acc: 9.94
+Test acc_ind: 92.31
+Epoch 9, duration: 216.00 s, loss: 0.0865, Train acc: 98.52
+Test ood acc: 9.01
+Test acc_ind: 92.45
+Epoch 10, duration: 215.83 s, loss: 0.0807, Train acc: 98.68
+Test ood acc: 9.32
+Test acc_ind: 92.77
+Epoch 11, duration: 215.56 s, loss: 0.0744, Train acc: 98.73
+Test ood acc: 10.25
+Test acc_ind: 92.45
+Epoch 12, duration: 217.37 s, loss: 0.0761, Train acc: 98.80
+Test ood acc: 10.87
+Test acc_ind: 92.54
+Epoch 13, duration: 216.34 s, loss: 0.0738, Train acc: 98.91
+Test ood acc: 9.94
+Test acc_ind: 92.82
+Epoch 14, duration: 216.98 s, loss: 0.0776, Train acc: 98.73
+Test ood acc: 11.49
+Test acc_ind: 92.77
+Epoch 15, duration: 216.65 s, loss: 0.0797, Train acc: 98.82
+Test ood acc: 10.56
+Test acc_ind: 92.72
+Epoch 16, duration: 216.44 s, loss: 0.0813, Train acc: 98.70
+Test ood acc: 12.11
+Test acc_ind: 92.68
+Epoch 17, duration: 217.37 s, loss: 0.0851, Train acc: 98.64
+Test ood acc: 10.87
+Test acc_ind: 92.72
+Epoch 18, duration: 216.88 s, loss: 0.0846, Train acc: 98.75
+Test ood acc: 11.18
+Test acc_ind: 92.82
+Epoch 19, duration: 216.74 s, loss: 0.0873, Train acc: 98.70
+Test ood acc: 12.73
+Test acc_ind: 92.68
+Epoch 20, duration: 217.51 s, loss: 0.0908, Train acc: 98.65
+Test ood acc: 11.49
+Test acc_ind: 93.05
+Epoch 21, duration: 216.79 s, loss: 0.0938, Train acc: 98.53
+Test ood acc: 10.25
+Test acc_ind: 92.49
+Epoch 22, duration: 217.65 s, loss: 0.1094, Train acc: 98.49
+Test ood acc: 12.73
+Test acc_ind: 92.40
+Epoch 23, duration: 217.73 s, loss: 0.1001, Train acc: 98.39
+Test ood acc: 11.49
+Test acc_ind: 92.91
+Epoch 24, duration: 219.43 s, loss: 0.0999, Train acc: 98.49
+Test ood acc: 13.66
+Test acc_ind: 92.17
+Epoch 25, duration: 218.34 s, loss: 0.1034, Train acc: 98.39
+Test ood acc: 11.18
+Test acc_ind: 92.91
+Epoch 26, duration: 217.84 s, loss: 0.1031, Train acc: 98.42
+Test ood acc: 12.42
+Test acc_ind: 92.72
+Epoch 27, duration: 217.65 s, loss: 0.1084, Train acc: 98.39
+Test ood acc: 11.80
+Test acc_ind: 92.86
+Epoch 28, duration: 217.52 s, loss: 0.1087, Train acc: 98.28
+Test ood acc: 12.11
+Test acc_ind: 92.59
+Epoch 29, duration: 217.56 s, loss: 0.1106, Train acc: 98.42
+Test ood acc: 13.04
+Test acc_ind: 92.59
+Epoch 30, duration: 218.22 s, loss: 0.1120, Train acc: 98.31
+Test ood acc: 11.49
+Test acc_ind: 92.54
+Epoch 31, duration: 219.49 s, loss: 0.1170, Train acc: 98.14
+Test ood acc: 12.42
+Test acc_ind: 92.40
+Epoch 32, duration: 218.07 s, loss: 0.1164, Train acc: 98.31
+Test ood acc: 12.73
+Test acc_ind: 92.63
+Epoch 33, duration: 218.51 s, loss: 0.1202, Train acc: 98.11
+Test ood acc: 12.11
+Test acc_ind: 92.86
+Epoch 34, duration: 218.91 s, loss: 0.1207, Train acc: 98.18
+Test ood acc: 12.42
+Test acc_ind: 92.54
+Epoch 35, duration: 218.19 s, loss: 0.1245, Train acc: 98.01
+Test ood acc: 11.49
+Test acc_ind: 92.59
+Epoch 36, duration: 219.38 s, loss: 0.1255, Train acc: 98.05
+Test ood acc: 10.87
+Test acc_ind: 92.49
+Epoch 37, duration: 218.90 s, loss: 0.1291, Train acc: 97.95
+Test ood acc: 10.56
+Test acc_ind: 92.35
+Epoch 38, duration: 218.55 s, loss: 0.1291, Train acc: 98.00
+Test ood acc: 11.18
+Test acc_ind: 92.31
+Epoch 39, duration: 218.46 s, loss: 0.1309, Train acc: 98.05
+Test ood acc: 10.87
+Test acc_ind: 92.59
+Epoch 40, duration: 218.92 s, loss: 0.1332, Train acc: 97.99
+Test ood acc: 11.18
+Test acc_ind: 92.40
+Epoch 41, duration: 218.66 s, loss: 0.1357, Train acc: 97.98
+Test ood acc: 13.35
+Test acc_ind: 92.68
+Epoch 42, duration: 220.06 s, loss: 0.1406, Train acc: 97.85
+Test ood acc: 12.11
+Test acc_ind: 92.63
+Epoch 43, duration: 219.76 s, loss: 0.1406, Train acc: 97.97
+Test ood acc: 12.11
+Test acc_ind: 92.63
+Epoch 44, duration: 219.10 s, loss: 0.1453, Train acc: 97.76
+Test ood acc: 12.11
+Test acc_ind: 92.63
+Epoch 45, duration: 219.35 s, loss: 0.1442, Train acc: 97.83
+Test ood acc: 10.25
+Test acc_ind: 92.54
+Epoch 46, duration: 219.21 s, loss: 0.1483, Train acc: 97.83
+Test ood acc: 13.04
+Test acc_ind: 92.96
+Epoch 47, duration: 219.15 s, loss: 0.1510, Train acc: 97.64
+Test ood acc: 11.49
+Test acc_ind: 92.82
+Epoch 48, duration: 221.27 s, loss: 0.1510, Train acc: 97.71
+Test ood acc: 11.80
+Test acc_ind: 92.91
+Epoch 49, duration: 222.35 s, loss: 0.1550, Train acc: 97.59
+Test ood acc: 11.80
+Test acc_ind: 92.72
+Epoch 50, duration: 220.90 s, loss: 0.1533, Train acc: 97.61
+Test ood acc: 11.80
+Test acc_ind: 92.49
+Epoch 51, duration: 219.47 s, loss: 0.1561, Train acc: 97.66
+Test ood acc: 14.29
+Test acc_ind: 92.68
+Epoch 52, duration: 219.22 s, loss: 0.1618, Train acc: 97.59
+Test ood acc: 10.87
+Test acc_ind: 92.63
+Epoch 53, duration: 219.95 s, loss: 0.1652, Train acc: 97.48
+Test ood acc: 11.18
+Test acc_ind: 92.68
+Epoch 54, duration: 220.20 s, loss: 0.1765, Train acc: 97.56
+Test ood acc: 10.87
+Test acc_ind: 92.72
+Epoch 55, duration: 220.60 s, loss: 0.1642, Train acc: 97.47
+Test ood acc: 11.80
+Test acc_ind: 92.91
+Epoch 56, duration: 219.64 s, loss: 0.1662, Train acc: 97.43
+Test ood acc: 11.18
+Test acc_ind: 92.59
+Epoch 57, duration: 220.04 s, loss: 0.1704, Train acc: 97.37
+Test ood acc: 11.49
+Test acc_ind: 92.72
+Epoch 58, duration: 220.54 s, loss: 0.1739, Train acc: 97.41
+Test ood acc: 11.18
+Test acc_ind: 92.96
+Epoch 59, duration: 220.15 s, loss: 0.1760, Train acc: 97.28
+Test ood acc: 12.11
+Test acc_ind: 92.54
+Epoch 60, duration: 220.03 s, loss: 0.1768, Train acc: 97.33
+Test ood acc: 10.87
+Test acc_ind: 92.49
+Epoch 61, duration: 220.00 s, loss: 0.1801, Train acc: 97.32
+Test ood acc: 12.73
+Test acc_ind: 92.77
+Epoch 62, duration: 220.46 s, loss: 0.1806, Train acc: 97.20
+Test ood acc: 12.42
+Test acc_ind: 92.68
+Epoch 63, duration: 220.61 s, loss: 0.1821, Train acc: 97.26
+Test ood acc: 11.18
+Test acc_ind: 92.72
+Epoch 64, duration: 219.78 s, loss: 0.1810, Train acc: 97.32
+Test ood acc: 13.04
+Test acc_ind: 92.63
+Epoch 65, duration: 221.32 s, loss: 0.1860, Train acc: 97.26
+Test ood acc: 11.18
+Test acc_ind: 92.72
+Epoch 66, duration: 220.51 s, loss: 0.1900, Train acc: 97.24
+Test ood acc: 12.11
+Test acc_ind: 92.77
+Epoch 67, duration: 220.11 s, loss: 0.1946, Train acc: 97.08
+Test ood acc: 11.80
+Test acc_ind: 92.45
+Epoch 68, duration: 220.31 s, loss: 0.1930, Train acc: 97.16
+Test ood acc: 12.11
+Test acc_ind: 92.40
+Epoch 69, duration: 220.93 s, loss: 0.1915, Train acc: 96.97
+Test ood acc: 12.42
+Test acc_ind: 92.82
+Epoch 70, duration: 221.10 s, loss: 0.1945, Train acc: 97.14
+Test ood acc: 13.66
+Test acc_ind: 92.49
+Epoch 71, duration: 220.63 s, loss: 0.1951, Train acc: 97.00
+Test ood acc: 11.80
+Test acc_ind: 92.54
+Epoch 72, duration: 221.33 s, loss: 0.2036, Train acc: 96.94
+Test ood acc: 12.73
+Test acc_ind: 92.96
+Epoch 73, duration: 221.44 s, loss: 0.2032, Train acc: 96.96
+Test ood acc: 10.87
+Test acc_ind: 92.54
+Epoch 74, duration: 220.54 s, loss: 0.2043, Train acc: 96.95
+Test ood acc: 9.94
+Test acc_ind: 92.49
+Epoch 75, duration: 220.87 s, loss: 0.2046, Train acc: 96.87
+Test ood acc: 10.25
+Test acc_ind: 92.63
+Epoch 76, duration: 221.25 s, loss: 0.2072, Train acc: 96.80
+Test ood acc: 11.80
+Test acc_ind: 92.68
+Epoch 77, duration: 221.70 s, loss: 0.2103, Train acc: 96.83
+Test ood acc: 9.94
+Test acc_ind: 92.49
+Epoch 78, duration: 221.72 s, loss: 0.2122, Train acc: 96.81
+Test ood acc: 10.56
+Test acc_ind: 92.59
+Epoch 79, duration: 220.99 s, loss: 0.2139, Train acc: 96.81
+Test ood acc: 11.18
+Test acc_ind: 92.72
+Epoch 80, duration: 223.26 s, loss: 0.2167, Train acc: 96.67
+Test ood acc: 11.49
+Test acc_ind: 92.59
+Epoch 81, duration: 221.21 s, loss: 0.2195, Train acc: 96.71
+Test ood acc: 12.42
+Test acc_ind: 92.68
+Epoch 82, duration: 222.28 s, loss: 0.2186, Train acc: 96.78
+Test ood acc: 14.29
+Test acc_ind: 92.59
+Epoch 83, duration: 221.45 s, loss: 0.2240, Train acc: 96.64
+Test ood acc: 11.18
+Test acc_ind: 92.40
+Epoch 84, duration: 223.25 s, loss: 0.2219, Train acc: 96.59
+Test ood acc: 12.73
+Test acc_ind: 92.82
+Epoch 85, duration: 222.25 s, loss: 0.2259, Train acc: 96.63
+Test ood acc: 11.80
+Test acc_ind: 92.77
+Epoch 86, duration: 222.46 s, loss: 0.2401, Train acc: 96.57
+Test ood acc: 9.63
+Test acc_ind: 92.59
+Epoch 87, duration: 222.13 s, loss: 0.2357, Train acc: 96.54
+Test ood acc: 9.94
+Test acc_ind: 92.49
+Epoch 88, duration: 222.24 s, loss: 0.2346, Train acc: 96.50
+Test ood acc: 11.18
+Test acc_ind: 92.77
+Epoch 89, duration: 222.13 s, loss: 0.2375, Train acc: 96.39
+Test ood acc: 11.80
+Test acc_ind: 92.72
+Epoch 90, duration: 222.61 s, loss: 0.2348, Train acc: 96.38
+Test ood acc: 11.18
+Test acc_ind: 92.72
