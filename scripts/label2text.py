@@ -1,15 +1,16 @@
-import os
-import shutil
-from pathlib import Path
-import argparse
-import matplotlib.pyplot as plt
-import numpy as np
-from PIL import Image
+import os, glob
+import pandas as pd
 
-root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/cifar10/images/'
+root = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/s_cars_ood_ind/'
+dst  = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/s_cars_ood_ind_fixed/label2text.txt'
 
-cls_list = os.listdir(root)
-for cls in cls_list:
-
-    with open(root[:-7]+'label2text.txt', 'a') as f:
-        f.write(cls[2:]+' '+cls[0]+' '+cls[2:]+'\n')
+df_names = pd.read_csv(root+'names.csv', header=None)
+df_names.index.name = 'Index'
+df_names = df_names.reset_index()
+df_names['Index'] = df_names['Index']+1
+df_names = df_names[[0, 'Index']]
+df_names.columns = ['Class','Class_num']
+for index, row in df_names.iterrows():
+    with open(dst, 'a') as f:
+        # f.write(str(row['Class_num'])+'_'+row['Class']+' '+str(row['Class_num'])+' '+str(row['Class_num'])+'_'+row['Class']+'\n')
+        f.write(row['Class'].replace(' ', '_') + ' ' + str(row['Class_num']) + ' ' + row['Class'].replace(' ', '_')+ '\n')
