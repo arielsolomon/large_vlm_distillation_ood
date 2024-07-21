@@ -1,4 +1,5 @@
-
+import sys
+sys.path.append('/home/user1/ariel/fed_learn/large_vlm_distillation_ood/faster_R_Cnn/')
 import datetime
 import os
 import time
@@ -8,7 +9,7 @@ import torchvision
 import torchvision.models.detection
 import torchvision.models.detection.faster_rcnn
 import utils
-from coco_utils import get_coco
+#from coco_utils import get_coco
 from engine import evaluate, train_one_epoch
 from group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 from torchvision.transforms import InterpolationMode
@@ -56,7 +57,7 @@ def get_args_parser(add_help=True):
 
     parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
 
-    parser.add_argument("--data-path", default="/Data/federated_learning/large_vlm_distillation_ood/faster_Rcnn/coco_dataset_8cls_mini/", type=str, help="dataset path")
+    parser.add_argument("--data-path", default="/home/user1/ariel/fed_learn/large_vlm_distillation_ood/faster_R_Cnn/s_cars_dataset/", type=str, help="dataset path")
     parser.add_argument(
         "--dataset",
         default="coco",
@@ -111,8 +112,8 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     )
-    parser.add_argument("--print-freq", default=100, type=int, help="print frequency")
-    parser.add_argument("--output-dir", default="outdir_new_coco_dataset_17_06", type=str, help="path to save outputs")
+    parser.add_argument("--print-freq", default=500, type=int, help="print frequency")
+    parser.add_argument("--output-dir", default="trial1_s_cars_naive_detection", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
     parser.add_argument("--aspect-ratio-group-factor", default=3, type=int)
@@ -173,8 +174,8 @@ def main(args):
         raise ValueError("KeyPoint detection doesn't support V2 transforms yet")
 
     if args.output_dir:
-        utils.mkdir(args.output_dir)
-
+        #utils.mkdir(args.output_dir)
+        os.mkdir(args.output_dir)
     utils.init_distributed_mode(args)
     print(args)
 

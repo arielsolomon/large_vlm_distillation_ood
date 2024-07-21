@@ -34,8 +34,8 @@ import os
 import json
 from PIL import Image
 import torch
-from tqdm import tqdm
-from torchvision.transforms import functional as F
+import os
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class CustomDataset(torch.utils.data.Dataset):
     def __init__(self, root,names, split,annotation_file, transforms=None):
@@ -143,6 +143,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--dataset",  default="coco",  type=str,  help="dataset name. Use coco for object detection and instance segmentation and coco_kp for Keypoint detection",
     )
     parser.add_argument("--model", default="fasterrcnn_resnet50_fpn", type=str, help="model name")
+    parser.add_argument("--use-model", default="False", type=str, help="use distilized model")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
         "-b", "--batch-size", default=2, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -304,10 +305,39 @@ def main(args):
     if "rcnn" in args.model:
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
+
+
     model = torchvision.models.get_model(
         args.model, weights=args.weights, weights_backbone=args.weights_backbone, num_classes=num_classes, **kwargs
     )
+
+    args.use_model=True
+    if args.use_model:
+        print('\nuse distilized model\n')
+        model_resnet = torch.load('/Data/federated_learning/large_vlm_distillation_ood/faster_Rcnn/test_distilled_model_resnet50.pth')
+        # model_resnet1 = model_resnet
+        # model1 = model
+        #
+        layers_fasterrcnn = [
+            model.backbone.body.layer1,
+            model.backbone.body.layer2,
+            model.backbone.body.layer3,
+            model.backbone.body.layer4
+        ]
+
+        layers_resnet50 = [
+            model_resnet.layer1,
+            model_resnet.layer2,
+            model_resnet.layer3,
+            model_resnet.layer4
+        ]
+
+        # Replace weights from model1 to model2
+        for layer_fasterrcnn, layer_resnet50 in zip(layers_fasterrcnn, layers_resnet50):
+            layer_fasterrcnn.load_state_dict(layer_resnet50.state_dict())
+
     model.to(device)
+
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
