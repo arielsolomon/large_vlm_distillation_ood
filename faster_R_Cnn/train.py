@@ -76,16 +76,23 @@ class CustomDataset(torch.utils.data.Dataset):
 
         if len(boxes) == 0:
             boxes = torch.zeros((0, 4), dtype=torch.float32)
-            labels = torch.zeros((0,), dtype=torch.int64)
+            area = torch.tensor([])  # Empty tensor for area
+            # boxes = torch.zeros((0, 4), dtype=torch.float32)
+            # labels = torch.tensor([], dtype=torch.int64)
         else:
-            boxes = torch.as_tensor(boxes, dtype=torch.float32)
-            labels = torch.as_tensor(labels, dtype=torch.int64)
+            boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)  # Ensure boxes has shape [N, 4]
+            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])  # Correctly calculate area
+            # boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            # labels = torch.as_tensor(labels, dtype=torch.int64)
         # boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # labels = torch.as_tensor(labels, dtype=torch.int64)
-
+        if len(boxes) == 0:
+            labels = torch.tensor([], dtype=torch.int64)
+        else:
+            labels = torch.as_tensor(labels, dtype=torch.int64).reshape(-1)
 
         image_id = torch.tensor([idx])
-        area = (boxes[3] - boxes[1]) * (boxes[2] - boxes[0])
+        #area = (boxes[3] - boxes[1]) * (boxes[2] - boxes[0])
         iscrowd = torch.zeros((len(boxes),), dtype=torch.int64)
 
         target = {}
