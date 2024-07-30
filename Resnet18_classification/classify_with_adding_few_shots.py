@@ -1,3 +1,4 @@
+import pandas as pd
 from torch.utils.data import DataLoader, Subset
 import torch
 import torch.nn as nn
@@ -7,12 +8,14 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 import time
 import random
+import wandb
 
+wandb.init(project="classify_r50_naive_adding_fewshots_ood")  # Replace with your project name
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 print(torch.cuda.get_device_name(device))
 
-dataset_dir = "/Data/federated_learning/large_vlm_distillation_ood/Resnet18_classification/s_cars_ood_adding_ood/"
+dataset_dir = "/home/user1/ariel/fed_learn/large_vlm_distillation_ood/s_cars_ood_ind_test_test_val/"
 
 train_tfms = transforms.Compose([transforms.Resize((400, 400)),
                                  transforms.RandomHorizontalFlip(),
@@ -27,30 +30,27 @@ train_ind_tfms = transforms.Compose([transforms.Resize((400, 400)),
                                  transforms.RandomRotation(15),
                                  transforms.ToTensor(),
                                  transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-dataset_train = torchvision.datasets.ImageFolder(root=dataset_dir+"test_2add", transform = train_tfms)
+# training is done with 5 samples of each class of the ood data
+dataset_train = torchvision.datasets.ImageFolder(root=dataset_dir+"test_to_add/", transform = train_tfms)
 trainloader = torch.utils.data.DataLoader(dataset_train, batch_size = 5, shuffle=True, num_workers = 4)
+# inference is done with same classes, different instances
+dataset_test_ood = torchvision.datasets.ImageFolder(root=dataset_dir+"test/", transform = test_tfms)
+testloader_ood = torch.utils.data.DataLoader(dataset_test_ood, batch_size = 50, shuffle=True, num_workers = 4)
+#test on train is done on ind data to make sure that the model as saved reconginzes ind data
 
-dataset_test_ood = torchvision.datasets.ImageFolder(root=dataset_dir+"test", transform = test_tfms)
-testloader_ood = torch.utils.data.DataLoader(dataset_test_ood, batch_size = 32, shuffle=False, num_workers = 4)
-#
-dataset_test_ind = torchvision.datasets.ImageFolder(root=dataset_dir+"train", transform = train_ind_tfms)
-testloader_ind = torch.utils.data.DataLoader(dataset_test_ind, batch_size = 32, shuffle=False, num_workers = 4)
-
-# def add_samples_to_train_dataset(dataset, dataset3, samples_to_add):
-#     new_indices = random.sample(range(len(dataset3)), samples_to_add)
-#     new_samples = [dataset3.samples[i] for i in new_indices]  # Note the use of `samples` attribute
-#     dataset.samples.extend(new_samples)
-#     dataset.targets.extend([dataset3.targets[i] for i in new_indices])
-#     return dataset  # Return the updated dataset
+dataset_test_ind = torchvision.datasets.ImageFolder(root=dataset_dir+"train", transform = test_tfms)
+testloader_ind_on_train = torch.utils.data.DataLoader(dataset_test_ind, batch_size = 186, shuffle=True, num_workers = 4)
 
 
-def train_model(trainloader, testloader_ind, testloader_ood, model, criterion, optimizer, scheduler,
+
+
+
+def train_model(trainloader, testloader_ood,testloader_ind_on_train,  model, criterion, optimizer, lrscheduler,
                 n_epochs=5):
     losses = []
-    train_accuracies = []
+    train_ood_accuracies = []
     test_ood_accuracies = []
-    test_ind_accuracies = []
+    test_ind_on_train_accuracies = []
     model = model.to(device)
     for epoch in range(n_epochs):
         since = time.time()
@@ -71,34 +71,35 @@ def train_model(trainloader, testloader_ind, testloader_ood, model, criterion, o
 
         epoch_duration = time.time() - since
         epoch_loss = running_loss / len(trainloader)
-        epoch_acc = 100 * running_correct / len(trainloader)
+        epoch_acc = epoch_acc = 100/5*running_correct/len(trainloader)# 100 * running_correct / len(trainloader)
         print(
-            f"Epoch {epoch + 1}, duration: {epoch_duration:.2f} s, loss: {epoch_loss:.4f}, Train acc: {epoch_acc:.2f}")
-
+            f"\nEpoch {epoch + 1}, duration: {epoch_duration:.2f} s, OOD_train_loss: {epoch_loss:.4f}, ood_train acc: {epoch_acc:.2f}")
+        wandb.log({"epoch": epoch + 1, "train_ood_loss": epoch_loss, "train_ood_acc": epoch_acc})
         losses.append(epoch_loss)
-        train_accuracies.append(epoch_acc)
-
+        train_ood_accuracies.append(epoch_acc)
+        torch.save(model, "model_{}.pt".format(epoch))
         model.eval()
-        test_ood = eval_model(model, testloader_ood)
+        name = 'test_on_ood'
+        test_ood = eval_model(model, testloader_ood, name)
         test_ood_accuracies.append(test_ood)
-        test_ind = eval_model(model, testloader_ind)
-        test_ind_accuracies.append(test_ind)
+        wandb.log({"epoch": epoch + 1, "test_ood_acc":  test_ood})
+        name2 = 'test_ind_on_train'
+        test_ind_on_train = eval_model(model, testloader_ind_on_train,name2)
+        test_ind_on_train_accuracies.append(test_ind_on_train)
+        wandb.log({"test_ind_on_train": test_ind_on_train})
 
-        scheduler.step(test_ood)
+
+        lrscheduler.step(test_ood)
         since = time.time()
 
-        # # Add samples to train_dataset after each epoch
-        # dataset = add_samples_to_train_dataset(dataset, dataset3, 5)  # Update the dataset
-        # trainloader = DataLoader(dataset, batch_size=32,
-        #                          shuffle=True)  # Reinitialize the DataLoader with the updated dataset
-
     print('Finished Training')
-    return model, losses, train_accuracies, test_ood_accuracies, test_ind_accuracies
+    return model, losses, train_ood_accuracies, test_ood_accuracies, test_ind_on_train_accuracies
 
 
-def eval_model(model, testloader_ood):
+def eval_model(model, testloader_ood, name):
     correct = 0.0
     total = 0.0
+    testloader_ood = testloader_ood
     with torch.no_grad():
         for i, data in enumerate(tqdm(testloader_ood, desc="test", leave=False)):
             images, labels = data
@@ -111,17 +112,25 @@ def eval_model(model, testloader_ood):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
         test_acc = 100.0 * correct / total
-    print(f'Test acc: {test_acc:.2f}')
+    print(f'\n{name}: {test_acc:.2f}')
     return test_acc
 
 
 
-model_ft = torch.load('resten18_trained_on_ind_S_cars.pt')
+model_ft = torch.load('resnet50_naive_train_epoch8_best_model.pt')
+print(f'\nmodel ft, resnet50_native_train_epoch8_best_model was loaded\n')
 num_ftrs = model_ft.fc.in_features
 model_ft.fc = nn.Linear(num_ftrs, 196)
 model_ft = model_ft.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model_ft.parameters(), lr=0.01,momentum=0.9)
 lrscheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=3, threshold = 0.9)
-
-model, losses, train_accuracies, test_ood_accuracies, test_ind_accuracies = train_model(trainloader, testloader_ind, testloader_ood, model_ft, criterion, optimizer, lrscheduler,n_epochs=5)
+n_epochs = 40
+model, losses, train_ood_accuracies, test_ood_accuracies, test_ind_accuracies = train_model(trainloader, testloader_ood,testloader_ind_on_train,  model_ft, criterion, optimizer, lrscheduler,
+                n_epochs)
+df_train_ood_acc = pd.DataFrame(train_ood_accuracies)
+df_test_ood_accuracies = pd.DataFrame(test_ood_accuracies)
+df_test_ind_accuracies = pd.DataFrame(test_ind_accuracies)
+df_train_ood_acc.to_csv('s_cars_few_shot_train/train_ood_acc.csv', header=None)
+df_test_ood_accuracies.to_csv('s_cars_few_shot_train/test_ood_acc.csv', header=None)
+df_test_ind_accuracies.to_csv('s_cars_few_shot_train/test_ind_acc.csv', header=None)
