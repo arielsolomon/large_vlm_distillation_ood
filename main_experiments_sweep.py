@@ -22,7 +22,28 @@ import numpy as np
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
 import wandb
 
-wandb.init(project="distilize_r50_s_cars_ood_ind_dataset_on_clip_lr_0.001")  # Replace with your project name
+wandb.init(project="distilize_r50_s_cars_ood_ind_dataset_on_clip_sweep")  # Replace with your project name
+
+# sweep configuration
+
+sweep_config = {
+    'method': 'random',  # or 'grid', 'bayes'
+    'metric': {
+        'name': 'val_loss',
+        'goal': 'minimize'
+    },
+    'parameters': {
+        'learning_rate': {
+            'values': [0.01,0.001, 0.0001]
+        },
+        'batch_size': {
+            'values': [8, 32]
+        },
+        'epochs': {
+            'value': 90
+        }
+    }
+}
 
 # Models
 default_model_names = sorted(name for name in models.__dict__
