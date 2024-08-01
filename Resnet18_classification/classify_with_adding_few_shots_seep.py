@@ -10,7 +10,9 @@ from tqdm import tqdm
 import time
 import os
 import wandb
-
+model_paths = ['/home/user1/ariel/fed_learn/large_vlm_distillation_ood/31_07_resnet50_distiled_non_fine_tuned_clip_3_losses.pth',
+              '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet50_distilation_3_losses_against_fine_tuned_clip_31_07.pth',
+              '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/naive_resnet50_on_s_cars.pt']
 # Sweep configuration
 sweep_config = {
     'method': 'random',
@@ -23,6 +25,9 @@ sweep_config = {
         },
         'momentum': {
             'values': [0.7, 0.8, 0.9]
+        },
+        'model_path': {
+            'values': model_paths
         }
     }
 }
@@ -65,13 +70,17 @@ def train_model(config=None):
     with wandb.init(config=config):
         config = wandb.config
 
-        model_path = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/31_07_resnet50_distiled_non_fine_tuned_clip_3_losses.pth'
-        model_dist = torch.load(model_path)
-        model_dist_dist = model_dist['state_dict']
-        model = resnet50(pretrained=False)
-        num_features = model.fc.in_features
-        model.fc = nn.Linear(num_features, 768)
-        model.load_state_dict(model_dist_dist)
+
+        model_path = config.model_path
+        if config.model_path == '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/naive_resnet50_on_s_cars.pt':
+            model= torch.load(config.model_path)
+        else:
+            model_data = torch.load(config.model_path)
+            model_state_dict = model_data['state_dict']
+            model = resnet50(pretrained=False)
+            num_features = model.fc.in_features
+            model.fc = nn.Linear(num_features, 768)
+            model.load_state_dict(model_state_dict)
         model = model.to(device)
 
         criterion = nn.CrossEntropyLoss()
