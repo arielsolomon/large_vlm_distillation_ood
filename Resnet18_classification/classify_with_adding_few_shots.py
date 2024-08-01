@@ -4,19 +4,23 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
+from torchvision.models import resnet50
 import torchvision.transforms as transforms
 from tqdm import tqdm
 import time
-import random
+import os
 import wandb
 
-wandb.init(project="classify_r50_naive_adding_fewshots_ood")  # Replace with your project name
+wandb.init(project="classify_r50_dist_against_non_finetuned_CLIP_sweep")  # Replace with your project name
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-print(torch.cuda.get_device_name(device))
 
-dataset_dir = "/home/user1/ariel/fed_learn/large_vlm_distillation_ood/s_cars_ood_ind_test_test_val/"
+def mkdir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
 
+dataset_dir = "/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/s_cars_ood_ind_test_test_val/"
+output_dir = "/home/user1/ariel/fed_learn/large_vlm_distillation_ood/Exp/"
+mkdir(output_dir)
 train_tfms = transforms.Compose([transforms.Resize((400, 400)),
                                  transforms.RandomHorizontalFlip(),
                                  transforms.RandomRotation(15),
@@ -32,7 +36,7 @@ train_ind_tfms = transforms.Compose([transforms.Resize((400, 400)),
                                  transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 # training is done with 5 samples of each class of the ood data
 dataset_train = torchvision.datasets.ImageFolder(root=dataset_dir+"test_to_add/", transform = train_tfms)
-trainloader = torch.utils.data.DataLoader(dataset_train, batch_size = 5, shuffle=True, num_workers = 4)
+trainloader = torch.utils.data.DataLoader(dataset_train, batch_size = 1, shuffle=True, num_workers = 4)
 # inference is done with same classes, different instances
 dataset_test_ood = torchvision.datasets.ImageFolder(root=dataset_dir+"test/", transform = test_tfms)
 testloader_ood = torch.utils.data.DataLoader(dataset_test_ood, batch_size = 50, shuffle=True, num_workers = 4)
@@ -40,6 +44,22 @@ testloader_ood = torch.utils.data.DataLoader(dataset_test_ood, batch_size = 50, 
 
 dataset_test_ind = torchvision.datasets.ImageFolder(root=dataset_dir+"train", transform = test_tfms)
 testloader_ind_on_train = torch.utils.data.DataLoader(dataset_test_ind, batch_size = 186, shuffle=True, num_workers = 4)
+
+sweep_config = {
+    'method': 'random'
+    }
+parameters_dict = {
+    'optimizer': {
+        'values': ['adam', 'sgd']
+        },
+    'lr': {
+        'values': [0.01, 0.001, 0.001]
+        },
+    'momentum': {
+          'values': [0.7, 0.8, 0.9]
+        },
+
+    }
 
 
 
@@ -53,6 +73,17 @@ def train_model(trainloader, testloader_ood,testloader_ind_on_train,  model, cri
     test_ind_on_train_accuracies = []
     model = model.to(device)
     for epoch in range(n_epochs):
+        model = model.to(device)
+        model.eval()
+        name = 'test_on_ood'
+        test_ood = eval_model(model, testloader_ood, name)
+        test_ood_accuracies.append(test_ood)
+        wandb.log({"test_ood_acc": test_ood})
+        name2 = 'test_ind_on_train'
+        test_ind_on_train = eval_model(model, testloader_ind_on_train, name2)
+        test_ind_on_train_accuracies.append(test_ind_on_train)
+        wandb.log({"test_ind_on_train": test_ind_on_train})
+
         since = time.time()
         running_loss = 0.0
         running_correct = 0.0
@@ -77,16 +108,17 @@ def train_model(trainloader, testloader_ood,testloader_ind_on_train,  model, cri
         wandb.log({"epoch": epoch + 1, "train_ood_loss": epoch_loss, "train_ood_acc": epoch_acc})
         losses.append(epoch_loss)
         train_ood_accuracies.append(epoch_acc)
-        torch.save(model, "model_{}.pt".format(epoch))
-        model.eval()
-        name = 'test_on_ood'
-        test_ood = eval_model(model, testloader_ood, name)
-        test_ood_accuracies.append(test_ood)
-        wandb.log({"epoch": epoch + 1, "test_ood_acc":  test_ood})
-        name2 = 'test_ind_on_train'
-        test_ind_on_train = eval_model(model, testloader_ind_on_train,name2)
-        test_ind_on_train_accuracies.append(test_ind_on_train)
-        wandb.log({"test_ind_on_train": test_ind_on_train})
+        mkdir(output_dir+'fewshots_non_finetuned_CLIP_10samples_step')
+        torch.save(model, "{}model_{}.pt".format(output_dir+'fewshots_non_finetuned_CLIP',epoch))
+        # model.eval()
+        # name = 'test_on_ood'
+        # test_ood = eval_model(model, testloader_ood, name)
+        # test_ood_accuracies.append(test_ood)
+        # wandb.log({"epoch": epoch + 1, "test_ood_acc":  test_ood})
+        # name2 = 'test_ind_on_train'
+        # test_ind_on_train = eval_model(model, testloader_ind_on_train,name2)
+        # test_ind_on_train_accuracies.append(test_ind_on_train)
+        # wandb.log({"test_ind_on_train": test_ind_on_train})
 
 
         lrscheduler.step(test_ood)
@@ -116,12 +148,21 @@ def eval_model(model, testloader_ood, name):
     return test_acc
 
 
+model_path = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/31_07_resnet50_distiled_non_fine_tuned_clip_3_losses.pth'
+model_dist = torch.load(model_path)
+model_dist_dist = model_dist['state_dict']
+model = resnet50(pretrained=False)
+num_features = model.fc.in_features
+model.fc = nn.Linear(num_features, 768)
+model.load_state_dict(model_dist_dist)
+load_status = model.load_state_dict(model_dist_dist)
+print("Missing keys:", load_status.missing_keys)
+print("Unexpected keys:", load_status.unexpected_keys)
 
-model_ft = torch.load('resnet50_naive_train_epoch8_best_model.pt')
 print(f'\nmodel ft, resnet50_native_train_epoch8_best_model was loaded\n')
-num_ftrs = model_ft.fc.in_features
-model_ft.fc = nn.Linear(num_ftrs, 196)
-model_ft = model_ft.to(device)
+# num_ftrs = model_ft.fc.in_features
+# model_ft.fc = nn.Linear(num_ftrs, 196)
+model_ft = model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model_ft.parameters(), lr=0.01,momentum=0.9)
 lrscheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=3, threshold = 0.9)
