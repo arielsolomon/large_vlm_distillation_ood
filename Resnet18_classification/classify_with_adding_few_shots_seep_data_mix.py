@@ -10,6 +10,7 @@ from tqdm import tqdm
 import time
 import os
 import wandb
+from itertools import cycle
 model_paths = ['/home/user1/ariel/fed_learn/large_vlm_distillation_ood/31_07_resnet50_distiled_non_fine_tuned_clip_3_losses.pth',
               '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/resnet50_distilation_3_losses_against_fine_tuned_clip_31_07.pth',
               '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/naive_resnet50_on_s_cars.pt']
@@ -58,12 +59,25 @@ train_ind_tfms = transforms.Compose([transforms.Resize((400, 400)),
                                      transforms.ToTensor(),
                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-dataset_train = torchvision.datasets.ImageFolder(root=dataset_dir+"test_to_add/", transform=train_tfms)
-trainloader = torch.utils.data.DataLoader(dataset_train, batch_size=1, shuffle=True, num_workers=4)
+dataset_train_ood = torchvision.datasets.ImageFolder(root=dataset_dir+"test_to_add/", transform=train_tfms)
+trainloader_ood = torch.utils.data.DataLoader(dataset_train_ood, batch_size=1, shuffle=True, num_workers=4)
+
 dataset_test_ood = torchvision.datasets.ImageFolder(root=dataset_dir+"test/", transform=test_tfms)
 testloader_ood = torch.utils.data.DataLoader(dataset_test_ood, batch_size=50, shuffle=True, num_workers=4)
+
 dataset_test_ind = torchvision.datasets.ImageFolder(root=dataset_dir+"val_on_train", transform=test_tfms)
 testloader_ind_on_train = torch.utils.data.DataLoader(dataset_test_ind, batch_size=186, shuffle=True, num_workers=4)
+
+dataset_train_ind = torchvision.datasets.ImageFolder(root=dataset_dir+"train", transform=test_tfms)
+trainloader_ind_on_train = torch.utils.data.DataLoader(dataset_test_ind, batch_size=1, shuffle=True, num_workers=4)
+
+def combine_data(data1, data2):
+    inputs1, labels1 = data1
+    inputs2, labels2 = data2
+
+    com_inp = torch.cat([inputs1, inputs2], dim=0)
+    com_lbl = torch.cat([labels1, labels2], dim=0)
+    return com_inp, com_lbl
 
 def train_model(config=None):
     # Initialize a new wandb run
@@ -74,6 +88,14 @@ def train_model(config=None):
         model_path = config.model_path
         if config.model_path == '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/naive_resnet50_on_s_cars.pt':
             model= torch.load(config.model_path)
+        elif config.model_path == '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/31_07_resnet50_distiled_non_fine_tuned_clip_3_losses.pth':
+            model_data = torch.load(config.model_path)
+            model_orderedict = model_data['state_dict']
+            model = resnet50(pretrained=False)
+            num_features = model.fc.in_features
+            model.fc = nn.Linear(num_features, 768)
+            model.load_state_dict(model_orderedict)
+
         else:
             model_data = torch.load(config.model_path)
             model_state_dict = model_data['state_dict']
@@ -109,9 +131,8 @@ def train_model(config=None):
             running_loss, running_correct = 0.0, 0.0
             model.train()
 
-            for i, data in enumerate(tqdm(trainloader, desc="Training few shots on ood", leave=False)):
-                inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+            for i, (data1, data2) in enumerate(tqdm(zip(cycle(trainloader_ood), trainloader_ind_on_train), desc="Training few shots on ind and ood", leave=False)):
+                inputs, labels = combine_data(data1, data2)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
@@ -122,8 +143,8 @@ def train_model(config=None):
                 running_correct += (labels == predicted).sum().item()
 
             epoch_duration = time.time() - since
-            epoch_loss = running_loss / len(trainloader)
-            epoch_acc = 100 / 5 * running_correct / len(trainloader)
+            epoch_loss = running_loss / len(trainloader_ood)
+            epoch_acc = 100 / 5 * running_correct / len(trainloader_ood)
             print(f"\nEpoch {epoch + 1}, duration: {epoch_duration:.2f} s, OOD_train_loss: {epoch_loss:.4f}, ood_train acc: {epoch_acc:.2f}")
             wandb.log({"epoch": epoch + 1, "train_ood_loss": epoch_loss, "train_ood_acc": epoch_acc})
             losses.append(epoch_loss)
