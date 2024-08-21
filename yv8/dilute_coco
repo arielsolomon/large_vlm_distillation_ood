@@ -1,0 +1,35 @@
+import os
+import glob
+from shutil import copy
+def mkdir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+dest = '/work/large_vlm_distillation_ood/datasets/coco/10p_coco/'
+mkdir(dest)
+src = '/work/large_vlm_distillation_ood/datasets/coco/coco/'  # Adjust path if needed
+
+
+lst_img_lbl, lst_tts = ['images/','labels/'], ['train/','val/']
+
+images = src+'images/train/'
+labels = src+'labels/train/'
+
+for dset in lst_img_lbl:
+    mkdir(os.path.join(dest,dset))
+    for t in lst_tts:
+        mkdir(os.path.join(dest,dset,t))
+
+        if dset=='images/':
+            path = src+dset+t
+            item_list = glob.glob(os.path.join(path, '*.jpg'))
+            diluted_list = item_list[9::10]
+            for item in diluted_list:
+                copy(item, dest+dset+t)
+        else:
+            dset=='labels/'
+            path = src+dset+t
+            item_list = glob.glob(os.path.join(path, '*.txt'))
+            diluted_list = item_list[9::10]
+            for item in diluted_list:
+                copy(item, dest+dset+t)
