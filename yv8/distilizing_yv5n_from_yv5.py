@@ -122,6 +122,7 @@ trainloader = DataLoader(trainset, batch_size=32, shuffle=True, collate_fn=custo
 
 cwd = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/yolov5/'
 student = torch.hub.load('ultralytics/yolov5', 'yolov5n').to(device)  # Student model
+student_infer = student.copy()
 model_path = cwd + 'yolov5x.pt'
 teacher = torch.load(model_path)['model'].float()
 
@@ -141,7 +142,7 @@ temperature = 1.5
 loss_weight = 1e2 * 2.5
 nms_threshold = 0.5  # Adjust as needed
 
-def trainer(student, teacher, trainloader, epochs, lr, temperature):
+def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature):
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
     loss_list = []
     s_detection_loss = []
@@ -153,7 +154,7 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature):
             labels = [label.to(device) for label in labels]
 
             # Get student and teacher model outputs
-            s_output = student(images)
+            s_output = student_infer(images)
             with torch.no_grad():
                 t_output = teacher(images)
 
