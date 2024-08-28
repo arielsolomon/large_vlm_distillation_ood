@@ -7,7 +7,9 @@ import os
 from PIL import Image
 #import wandb
 from datetime import datetime
-from torchvision.ops import nms
+from utils.general import non_max_suppression as nms
+
+import time
 
 # Initialize #wandb
 #wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
@@ -59,97 +61,6 @@ def custom_collate_fn(batch):
     images = torch.stack(images, 0)  # Stack images into a single tensor
     return images, labels
 
-
-import torch
-from torchvision.ops import nms
-
-
-def non_max_suppression(predictions, conf_thresh=0.4, iou_thresh=0.4, img_size=640):
-    """
-    Apply Non-Maximum Suppression (NMS) on YOLOv5 predictions.
-
-    Parameters:
-    - predictions (torch.Tensor): Raw output from YOLOv5, shape (batch_size, num_detected_objects, 85).
-    - conf_thresh (float): Confidence threshold to filter out weak detections.
-    - iou_thresh (float): Intersection over Union (IoU) threshold for NMS.
-    - img_size (int): Size of the image (e.g., 640 for 640x640 images).
-
-    Returns:
-    - nms_res (list of tuples): List of tuples containing class labels and bounding boxes for each image.
-    - scores (list of tensors): List of tensors containing scores for each image.
-    """
-    batch_size = predictions.shape[0]
-    nms_res = []
-    scores = []
-
-    for i in range(batch_size):
-        pred = predictions[i]  # Shape: (num_detected_objects, 85)
-
-        # Filter by confidence threshold
-        conf_mask = pred[:, 4] > conf_thresh
-        pred = pred[conf_mask]
-
-        if pred.size(0) == 0:
-            nms_res.append((torch.tensor([]), torch.tensor([])))
-            scores.append(torch.tensor([]))
-            continue
-
-        boxes = pred[:, :4]  # Bounding boxes
-        conf_scores = pred[:, 4]  # Objectness score
-        class_scores = pred[:, 5:]  # Class scores
-
-        # Compute class-specific scores and apply NMS
-        class_ids = torch.argmax(class_scores, dim=1)
-        unique_classes = class_ids.unique()
-
-        final_boxes = []
-        final_class_ids = []
-        final_scores = []
-
-        for cls in unique_classes:
-            cls_mask = class_ids == cls
-            cls_boxes = boxes[cls_mask]
-            cls_scores = conf_scores[cls_mask]
-
-            if cls_boxes.size(0) == 0:
-                continue
-
-            # Apply NMS
-            keep = nms(cls_boxes, cls_scores, iou_thresh)
-            final_boxes.append(cls_boxes[keep])
-            final_class_ids.append(cls[keep])
-            final_scores.append(cls_scores[keep])
-
-        if final_boxes:
-            final_boxes = torch.cat(final_boxes)
-            final_class_ids = torch.cat(final_class_ids)
-            final_scores = torch.cat(final_scores)
-        else:
-            final_boxes = torch.tensor([])
-            final_class_ids = torch.tensor([])
-            final_scores = torch.tensor([])
-
-        # Convert to relative coordinates (normalized to image size)
-        final_boxes /= img_size
-        final_boxes = torch.cat([
-            final_boxes[:, 2:4] - final_boxes[:, :2],  # Width and height
-            final_boxes[:, :2] + (final_boxes[:, 2:4] - final_boxes[:, :2]) / 2  # Center
-        ], dim=1)
-
-        nms_res.append((final_class_ids, final_boxes))
-        scores.append(final_scores)
-
-    return nms_res, scores
-
-
-# Example usage
-# predictions = torch.randn((32, 25108, 85))  # Example raw predictions
-# nms_res, scores = non_max_suppression(predictions)
-
-
-# Example usage
-# predictions = torch.randn((32, 25108, 85))  # Example raw predictions
-# nms_res, scores = non_max_suppression(predictions)
 
 
 def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
@@ -205,9 +116,10 @@ lr = 1e-4
 temperature = 1.5
 loss_weight = 1e2 * 2.5
 nms_threshold = 0.5  # Adjust as needed
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature, device):
 
-def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature):
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
     loss_list = []
     s_detection_loss = []
@@ -236,7 +148,7 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             KL loss function"""
             # Apply NMS
 
-            s_predictions, s_prediction_scores = non_max_suppression(s_predictions, conf_thresh=0.4, iou_thresh=0.4, img_size=640)
+            s_predictions = nms(s_predictions)
 
             # Calculate detection loss after NMS
             d_loss = detection_loss(s_predictions, labels[0], device)
@@ -273,4 +185,4 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             torch.cuda.empty_cache()
             return student, loss_list
 
-trained_student_model, losses = trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature)
+trained_student_model, losses = trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature, device)
