@@ -1,13 +1,13 @@
-import torch
 from tqdm import tqdm
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
-import torch.nn.functional as F
 import os
 from PIL import Image
 #import wandb
 from datetime import datetime
 from utils.general import non_max_suppression as nms
+import torch
+import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
 
@@ -90,10 +90,6 @@ def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
 #     total_loss = box_loss + cls_loss
 #     return total_loss, pred_conf
 #
-import torch
-import torch.nn.functional as F
-from scipy.optimize import linear_sum_assignment
-
 
 def detection_loss(predictions, targets):
     pred_boxes, pred_cls = [], []
@@ -127,6 +123,20 @@ def detection_loss(predictions, targets):
     total_loss = box_loss + cls_loss
     return total_loss
 
+def get_conf(predictions):
+    confs = []
+    # Extract confidence scores
+    for ind, item in enumerate(predictions):
+        if item.numel() < 1:
+            pass
+        elif item.shape[0] > 1:
+            for ind2, i in enumerate(item):
+                conf = item[ind2][4]
+                confs.append(conf)
+        else:
+            conf = item[0][4]
+            confs.append(conf)
+    return confs
 
 size = (640, 640)
 trainset = yolo(images, labels, transform, size)
@@ -186,7 +196,19 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             # Apply NMS
 
             s_predictions = nms(s_predictions)
+            t_predictions = nms(t_predictions)
+            # not elegant but this is so far....
             for ten in s_predictions:
+                if ten.numel()>0:
+                    if ten.shape[0]>1:
+                        for bo in ten:
+                            box = bo[:4]/img_size
+                            bo[:4] = box
+                    else:
+                        box1 = ten[0][:4]/img_size
+                        ten[:,:4]=box1
+
+            for ten in t_predictions:
                 if ten.numel()>0:
                     if ten.shape[0]>1:
                         for bo in ten:
@@ -203,10 +225,10 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             # Log both losses
 
             #wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
+            student_conf = get_conf(s_predictions)
+            teacher_conf = get_conf(t_predictions)
 
-            # Extract confidence scores
-            student_conf = s_predictions[..., 4]
-            teacher_conf = t_predictions[..., 4]
+            # teacher_conf = t_predictions[..., 4]
 
             # Ensure shape compatibility
             if student_conf.shape != teacher_conf.shape:
