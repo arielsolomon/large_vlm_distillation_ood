@@ -8,8 +8,8 @@ from PIL import Image
 #import wandb
 from datetime import datetime
 from utils.general import non_max_suppression as nms
+from scipy.optimize import linear_sum_assignment
 
-import time
 
 # Initialize #wandb
 #wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
@@ -69,26 +69,63 @@ def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
     kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
     return kl_loss
 
+# def detection_loss(predictions, targets):
+#     # Assuming predictions is a list of tensors, one per image
+#     pred_boxes, pred_conf, pred_cls = [], [], []
+#     for pred in predictions:
+#         pred_boxes.append(pred[..., :4])
+#         pred_conf.append(pred[..., 4])
+#         pred_cls.append(pred[..., 5:])
+#     pred_boxes = torch.cat(pred_boxes, dim=0)
+#     pred_conf = torch.cat(pred_conf, dim=0)
+#     pred_cls = torch.cat(pred_cls, dim=0)
+#
+#     target_boxes = targets[..., 1:]
+#     target_cls = targets[..., 0]
+#
+#     box_loss = F.mse_loss(pred_boxes, target_boxes)
+#     # conf_loss = F.binary_cross_entropy(pred_conf, target_conf)
+#     cls_loss = F.cross_entropy(pred_cls, target_cls.long())
+#
+#     total_loss = box_loss + cls_loss
+#     return total_loss, pred_conf
+#
+import torch
+import torch.nn.functional as F
+from scipy.optimize import linear_sum_assignment
+
+
 def detection_loss(predictions, targets):
-    # Assuming predictions is a list of tensors, one per image
-    pred_boxes, pred_conf, pred_cls = [], [], []
+    pred_boxes, pred_cls = [], []
     for pred in predictions:
         pred_boxes.append(pred[..., :4])
-        pred_conf.append(pred[..., 4])
         pred_cls.append(pred[..., 5:])
     pred_boxes = torch.cat(pred_boxes, dim=0)
-    pred_conf = torch.cat(pred_conf, dim=0)
     pred_cls = torch.cat(pred_cls, dim=0)
 
     target_boxes = targets[..., 1:]
     target_cls = targets[..., 0]
 
-    box_loss = F.mse_loss(pred_boxes, target_boxes)
-    # conf_loss = F.binary_cross_entropy(pred_conf, target_conf)
-    cls_loss = F.cross_entropy(pred_cls, target_cls.long())
+    # Compute the cost matrix for box matching
+    cost_matrix = torch.cdist(pred_boxes.float(), target_boxes.float(), p=1)  # L1 distance between boxes
+    matched_indices = linear_sum_assignment(cost_matrix.cpu().detach().numpy())
+
+    # Convert the indices back to tensors
+    pred_idx = torch.tensor(matched_indices[0], dtype=torch.long)
+    target_idx = torch.tensor(matched_indices[1], dtype=torch.long)
+
+    # Select the matched predictions and targets
+    matched_pred_boxes = pred_boxes[pred_idx]
+    matched_target_boxes = target_boxes[target_idx]
+    matched_pred_cls = pred_cls[pred_idx].reshape(1,-1)
+    matched_target_cls = target_cls[target_idx]
+
+    # Calculate losses
+    box_loss = F.mse_loss(matched_pred_boxes, matched_target_boxes)
+    cls_loss = F.cross_entropy(matched_pred_cls, matched_target_cls.reshape(1,-1))
 
     total_loss = box_loss + cls_loss
-    return total_loss, pred_conf
+    return total_loss
 
 
 size = (640, 640)
@@ -129,7 +166,7 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             labels = list(labels)
             images = images.to(device)
             labels = [label.to(device) for label in labels]
-
+            img_size = images.shape[-1]
             # Get student and teacher model outputs
             s_output = student_infer(images)
             with torch.no_grad():
@@ -149,9 +186,19 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             # Apply NMS
 
             s_predictions = nms(s_predictions)
+            for ten in s_predictions:
+                if ten.numel()>0:
+                    if ten.shape[0]>1:
+                        for bo in ten:
+                            box = bo[:4]/img_size
+                            bo[:4] = box
+                    else:
+                        box1 = ten[0][:4]/img_size
+                        ten[:,:4]=box1
+
 
             # Calculate detection loss after NMS
-            d_loss = detection_loss(s_predictions, labels[0], device)
+            d_loss = detection_loss(s_predictions, labels[0])
 
             # Log both losses
 
