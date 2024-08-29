@@ -15,7 +15,7 @@ from scipy.optimize import linear_sum_assignment
 wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
 current_date = datetime.now()
 date = current_date.strftime("%d_%m_%Y")
-pr_name = 'test_debug'
+pr_name = 'with kl loss and detection loss'
 wandb.init(project=pr_name + date)  # Replace with your project name
 
 # Define your transforms (if needed)
@@ -62,13 +62,6 @@ def custom_collate_fn(batch):
     return images, labels
 
 
-
-# def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
-#     student_probs = F.softmax(student_outputs / temperature, dim=-1)
-#     teacher_probs = F.softmax(teacher_outputs / temperature, dim=-1)
-#     kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
-#     return kl_loss
-
 def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
     # Determine the minimum length to compare
 
@@ -88,13 +81,6 @@ def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
 
     return kl_loss
 
-
-# Example usage:
-student_outputs = torch.tensor([0.8, 0.1, 0.05])  # Smaller student confidence scores (3 classes)
-teacher_outputs = torch.tensor([0.7, 0.2, 0.05, 0.05])  # Larger teacher confidence scores (4 classes)
-temperature = 1.0
-
-loss = kl_divergence_loss(student_outputs, teacher_outputs, temperature)
 def detection_loss(predictions, targets):
     pred_boxes, pred_cls = [], []
     for pred in predictions:
