@@ -15,7 +15,7 @@ from scipy.optimize import linear_sum_assignment
 wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
 current_date = datetime.now()
 date = current_date.strftime("%d_%m_%Y")
-pr_name = 'with kl loss and detection loss'
+pr_name = 'weighted_d_loss'
 wandb.init(project=pr_name + date)  # Replace with your project name
 
 # Define your transforms (if needed)
@@ -25,7 +25,7 @@ transform = transforms.Compose([
 ])
 
 # Load data
-src = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/coco_10p/'  # Adjust path if needed
+src = '/Data/federated_learning/large_vlm_distillation_ood/datasets/coco/10p_coco/'  # Adjust path if needed
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 images = src + 'images/train/'
 labels = src + 'labels/train/'
@@ -81,13 +81,14 @@ def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
 
     return kl_loss
 
-def detection_loss(predictions, targets):
+def detection_loss(predictions, targets, weight_cls_loss, weight_bbox_loss):
     pred_boxes, pred_cls = [], []
     for pred in predictions:
         pred_boxes.append(pred[..., :4])
-        pred_cls.append(pred[..., 5:])
+        pred_cls.append(pred[..., 4]) # for Cross entropy, one needs the confidence score
     pred_boxes = torch.cat(pred_boxes, dim=0)
     pred_cls = torch.cat(pred_cls, dim=0)
+    pred_cls = torch.log(pred_cls)
 
     target_boxes = targets[..., 1:]
     target_cls = targets[..., 0]
@@ -111,7 +112,7 @@ def detection_loss(predictions, targets):
     box_loss = F.mse_loss(matched_pred_boxes, matched_target_boxes)
     cls_loss = F.cross_entropy(matched_pred_cls, matched_target_cls.reshape(1,-1))
 
-    total_loss = box_loss + cls_loss
+    total_loss = box_loss/weight_bbox_loss + cls_loss/weight_cls_loss
     return total_loss
 
 def get_conf(predictions):
@@ -133,10 +134,10 @@ size = (640, 640)
 trainset = yolo(images, labels, transform, size)
 trainloader = DataLoader(trainset, batch_size=32, shuffle=True, collate_fn=custom_collate_fn, num_workers=4)
 
-cwd = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/yolov5/'
+cwd = os.getcwd()
+
 student = torch.hub.load('ultralytics/yolov5', 'yolov5n').to(device)  # Student model
-student_infer = student
-model_path = cwd + 'yolov5x.pt'
+model_path = cwd + '/yolov5x.pt'
 teacher = torch.load(model_path)['model'].float()
 
 for param in student.parameters():
@@ -152,16 +153,14 @@ teacher.eval()
 epochs = 1500
 lr = 1e-4
 temperature = 1.5
-loss_weight = 1e6
-loss_weight = torch.tensor(loss_weight, dtype=torch.float16, device=device)
 nms_threshold = 0.5  # Adjust as needed
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature, device):
+def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
     loss_list = []
-    s_detection_loss = []
+    weight_cls_loss, weight_bbox_loss = 1e06, 1e03
 
     for epoch in range(epochs):
         for images, labels in tqdm(trainloader, desc=f"Epoch {epoch + 1}/{epochs}"):
@@ -170,7 +169,7 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             labels = [label.to(device) for label in labels]
             img_size = images.shape[-1]
             # Get student and teacher model outputs
-            s_output = student_infer(images)
+            s_output = student(images)
             with torch.no_grad():
                 t_output = teacher(images)
 
@@ -215,7 +214,7 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             s_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in s_predictions]
             t_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in t_predictions]
             # Calculate detection loss after NMS
-            d_loss = detection_loss(s_predictions, labels[0])
+            d_loss = detection_loss(s_predictions, labels[0],weight_cls_loss, weight_bbox_loss)
 
             # Log both losses
 
@@ -234,8 +233,7 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             wandb.log({"KL loss": kl_loss})
 
             # Total loss
-            weighted_d_loss = torch.tensor(d_loss/ loss_weight, dtype=torch.float16, device=device, requires_grad=True)
-            total_loss = kl_loss + weighted_d_loss
+            total_loss = kl_loss + d_loss
             wandb.log({"Total loss": total_loss})
             #print(f'\rTotal Loss: {total_loss.item():.4f} epoch {epoch}', end='')
             optimizer.zero_grad()
@@ -248,4 +246,4 @@ def trainer(student, student_infer, teacher, trainloader, epochs, lr, temperatur
             torch.cuda.empty_cache()
     return student, loss_list
 
-trained_student_model, losses = trainer(student, student_infer, teacher, trainloader, epochs, lr, temperature, device)
+trained_student_model, losses = trainer(student, teacher, trainloader, epochs, lr, temperature, device)
