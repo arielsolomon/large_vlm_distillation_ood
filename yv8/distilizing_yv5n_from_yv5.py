@@ -15,7 +15,7 @@ from scipy.optimize import linear_sum_assignment
 wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
 current_date = datetime.now()
 date = current_date.strftime("%d_%m_%Y")
-pr_name = 'weighted_d_loss'
+pr_name = '02_09_losses_modifications'
 wandb.init(project=pr_name + date)  # Replace with your project name
 
 # Define your transforms (if needed)
@@ -62,25 +62,62 @@ def custom_collate_fn(batch):
     return images, labels
 
 
-def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
-    # Determine the minimum length to compare
+# def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
+#     # Determine the minimum length to compare
+#
+#     min_len = min(student_outputs.size(0), teacher_outputs.size(0))
+#
+#     # Truncate both tensors to the same length
+#     student_outputs = student_outputs[:min_len]
+#     teacher_outputs = teacher_outputs[:min_len]
+#
+#     # Apply temperature scaling to soften the distributions
+#     student_probs = F.softmax(student_outputs / temperature, dim=0)
+#     teacher_probs = F.softmax(teacher_outputs / temperature, dim=0)
+#
+#
+#     # Compute KL divergence loss
+#     kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
+#
+#     return kl_loss
+def kl_divergence_loss(teacher_output, student_output, temperature, device, epsilon=1e-7):
+    """Calculates KL divergence between teacher and student outputs with temperature,
+       ensuring alignment and handling different tensor lengths.
 
-    min_len = min(student_outputs.size(0), teacher_outputs.size(0))
+    Args:
+        teacher_output: Tensor of teacher outputs (probabilities).
+        student_output: Tensor of student outputs (probabilities).
+        temperature: Temperature factor for softening the distribution.
 
-    # Truncate both tensors to the same length
-    student_outputs = student_outputs[:min_len]
-    teacher_outputs = teacher_outputs[:min_len]
+    Returns:
+        KL divergence loss.
+    """
 
-    # Apply temperature scaling to soften the distributions
-    student_probs = F.softmax(student_outputs / temperature, dim=0)
-    teacher_probs = F.softmax(teacher_outputs / temperature, dim=0)
+    # Ensure valid probability distributions
+    teacher_output = torch.clamp(teacher_output, min=1e-7, max=1.0)
+    student_output = torch.clamp(student_output, min=1e-7, max=1.0)
 
+    # Apply temperature scaling
+    teacher_output = teacher_output / temperature
+    student_output = student_output / temperature
 
-    # Compute KL divergence loss
-    kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
+    # Find the minimum length
+    min_length = min(teacher_output.shape[0], student_output.shape[0])
 
+    # Pad shorter tensor with zeros to match the longer tensor
+    teacher_output.to(device), student_output.to(device)
+    if teacher_output.shape[0] < student_output.shape[0]:
+        teacher_output = torch.cat([teacher_output, torch.zeros(student_output.shape[0] - teacher_output.shape[0]).to(device)])
+    elif student_output.shape[0] < teacher_output.shape[0]:
+        student_output = torch.cat([student_output, torch.zeros(teacher_output.shape[0] - student_output.shape[0]).to(device)])
+
+    # Calculate KL divergence
+    kl_loss = torch.sum(teacher_output * torch.log(teacher_output / student_output+epsilon))
+    # Average the loss across the entire length
+    kl_loss = kl_loss / teacher_output.shape[0]  # Or student_output.shape[0]
+    if kl_loss == torch.inf:
+        kl_loss = -0.02
     return kl_loss
-
 def detection_loss(predictions, targets, weight_cls_loss, weight_bbox_loss):
     pred_boxes, pred_cls = [], []
     for pred in predictions:
@@ -151,7 +188,7 @@ teacher.eval()
 
 # Set training parameters
 epochs = 1500
-lr = 1e-4
+lr = 1e-3
 temperature = 1.5
 nms_threshold = 0.5  # Adjust as needed
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -160,7 +197,7 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
     loss_list = []
-    weight_cls_loss, weight_bbox_loss = 1e06, 1e03
+    weight_cls_loss, weight_bbox_loss = 1e05, 1e02
 
     for epoch in range(epochs):
         for images, labels in tqdm(trainloader, desc=f"Epoch {epoch + 1}/{epochs}"):
@@ -229,9 +266,8 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
             teacher_conf = torch.tensor(teacher_conf, dtype=torch.float16, device=device, requires_grad=True)
 
             # Calculate KL divergence loss
-            kl_loss = kl_divergence_loss(student_conf, teacher_conf, temperature)
+            kl_loss = kl_divergence_loss(student_conf, teacher_conf, temperature,device, epsilon=1e-7)
             wandb.log({"KL loss": kl_loss})
-
             # Total loss
             total_loss = kl_loss + d_loss
             wandb.log({"Total loss": total_loss})
