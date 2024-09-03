@@ -80,6 +80,7 @@ def custom_collate_fn(batch):
 #     kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
 #
 #     return kl_loss
+
 def kl_divergence_loss(teacher_output, student_output, temperature, device, epsilon=1e-7):
     """Calculates KL divergence between teacher and student outputs with temperature,
        ensuring alignment and handling different tensor lengths.
@@ -118,6 +119,7 @@ def kl_divergence_loss(teacher_output, student_output, temperature, device, epsi
     if kl_loss == torch.inf:
         kl_loss = -0.02
     return kl_loss
+
 def detection_loss(predictions, targets, weight_cls_loss, weight_bbox_loss):
     pred_boxes, pred_cls = [], []
     for pred in predictions:
@@ -193,6 +195,7 @@ temperature = 1.5
 nms_threshold = 0.5  # Adjust as needed
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# start training
 def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
@@ -213,15 +216,8 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
             # Extract raw outputs
             s_predictions = s_output  # Adjust based on actual output format
             t_predictions = t_output[0]  # Modify based on actual output format
-
-            # Calculate detection loss before NMS
-            # detection_loss_val = detection_loss(s_predictions, labels[0], device)
-
-
-            """
-            I also need to get predictions/confidence s cores from the student in eval mode so I can apply it to 
-            KL loss function"""
-            # Apply NMS
+            
+            # extract/focus predictions after NMS
 
             s_predictions = nms(s_predictions)
 
@@ -229,16 +225,21 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
             # not elegant but this is so far....
             for ten in s_predictions:
+                # if tensor is not empty
                 if ten.numel()>0:
+                    # if single bounding box
                     if ten.shape[0]>1:
                         for bo in ten:
+                            # normalize according to imgage dimension for values between 0 to 1
                             box = bo[:4]/img_size
                             bo[:4] = box
+                    # for multiple boxes
                     else:
                         box1 = ten[0][:4]/img_size
                         ten[:,:4]=box1
 
             for ten in t_predictions:
+                #same here
                 if ten.numel()>0:
                     if ten.shape[0]>1:
                         for bo in ten:
@@ -247,17 +248,18 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
                     else:
                         box1 = ten[0][:4]/img_size
                         ten[:,:4]=box1
-
+            # Moving them to tensor type hald
             s_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in s_predictions]
             t_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in t_predictions]
-            # Calculate detection loss after NMS
+            
+            # Calculate detection loss after NMS to be weighted regarding KL_divergence loss
+            
             d_loss = detection_loss(s_predictions, labels[0],weight_cls_loss, weight_bbox_loss)
 
             # Log both losses
 
             wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
-            # student_conf = torch.tensor(get_conf(s_predictions), requires_grad=True)
-            # teacher_conf = torch.tensor(get_conf(t_predictions), requires_grad=True)
+
             student_conf = get_conf(s_predictions)
             teacher_conf = get_conf(t_predictions)
 
