@@ -11,11 +11,11 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
 
-# Initialize wandb
+# Initialize #wandb
 wandb.login(key='de945abee07d10bd254a97ed0c746a9f80a818e5')
 current_date = datetime.now()
 date = current_date.strftime("%d_%m_%Y")
-pr_name = '02_09_losses_modifications'
+pr_name = '05_09_kl_loss_equal_dist_size_temp07_s_model_from_Lmodel'
 wandb.init(project=pr_name + date)  # Replace with your project name
 
 # Define your transforms (if needed)
@@ -25,7 +25,7 @@ transform = transforms.Compose([
 ])
 
 # Load data
-src = '/Data/federated_learning/large_vlm_distillation_ood/datasets/coco/10p_coco/'  # Adjust path if needed
+src = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/coco_10p/'  # Adjust path if needed
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 images = src + 'images/train/'
 labels = src + 'labels/train/'
@@ -39,6 +39,7 @@ class yolo(Dataset):
         self.size = size
         self.image_list = sorted(os.listdir(self.img_path))
         self.labels_list = sorted(os.listdir(self.lbl_path))
+        
 
     def __len__(self):
         return len(self.image_list)
@@ -62,38 +63,60 @@ def custom_collate_fn(batch):
     return images, labels
 
 
-# def kl_divergence_loss(student_outputs, teacher_outputs, temperature):
-#     # Determine the minimum length to compare
-#
-#     min_len = min(student_outputs.size(0), teacher_outputs.size(0))
-#
-#     # Truncate both tensors to the same length
-#     student_outputs = student_outputs[:min_len]
-#     teacher_outputs = teacher_outputs[:min_len]
-#
-#     # Apply temperature scaling to soften the distributions
-#     student_probs = F.softmax(student_outputs / temperature, dim=0)
-#     teacher_probs = F.softmax(teacher_outputs / temperature, dim=0)
-#
-#
-#     # Compute KL divergence loss
-#     kl_loss = F.kl_div(student_probs.log(), teacher_probs, reduction='batchmean') * (temperature ** 2)
-#
-#     return kl_loss
+def add_samples(student_out, teacher_out):
+    if teacher_out.size(0) == 0 or student_out.size(0) == 0:
+        print("Skipping KL loss calculation due to zero-length dimension.")
+        return torch.tensor(0.0).to(device)
+    # if teacher size bigger than student size it gets 1, else it gets 0
+    min_index = 0 if teacher_out.shape[0] < student_out.shape[0] else 1
+    t_out, s_out = teacher_out.clone(), student_out.clone()
+    if student_out.size(0)==0 or teacher_out.size(0)==0:
+        return student_out, teacher_out 
+    elif t_out.size(0)==s_out.size(0):
+        return student_out, teacher_out
+    else:
+
+        if min_index==0:
+            mean = t_out.mean()
+            std = t_out.std()
+            additional_samples = torch.normal(mean=float(mean), std=float(std), size=(1,(s_out.size(0) - t_out.size(0)))).to(device)
+            if additional_samples.dim()>1 and additional_samples.shape[1]>1:
+                additional_samples = additional_samples.squeeze()
+            elif additional_samples.shape ==(1,1):
+                additional_samples = additional_samples[:,0]
+            if teacher_out.dim()>1:
+                teacher_out = teacher_out.squeeze()
+            teacher_out = torch.cat((teacher_out, additional_samples))
+            # try:
+            #     teacher_out = torch.cat((teacher_out, additional_samples))
+            # except:
+            #     print('debug')
+                
+
+        else:
+            mean = s_out.mean()
+            std = s_out.std()
+            additional_samples = torch.normal(mean=float(mean), std=float(std), size=(1,(t_out.size(0) - s_out.size(0)))).to(device)
+            if additional_samples.dim()>1 and additional_samples.shape[1]>1:
+                additional_samples = additional_samples.squeeze()
+            elif additional_samples.shape ==(1,1):
+                additional_samples = additional_samples[:,0]
+            if student_out.dim()>1:
+                student_out = student_out.squees()
+            student_out = torch.cat((student_out, additional_samples))
+            # try:
+            #     student_out = torch.cat((student_out, additional_samples))
+            # except:
+            #     print('break student')
+        
+        return student_out, teacher_out
+
 
 def kl_divergence_loss(teacher_output, student_output, temperature, device, epsilon=1e-7):
-    """Calculates KL divergence between teacher and student outputs with temperature,
-       ensuring alignment and handling different tensor lengths.
 
-    Args:
-        teacher_output: Tensor of teacher outputs (probabilities).
-        student_output: Tensor of student outputs (probabilities).
-        temperature: Temperature factor for softening the distribution.
-
-    Returns:
-        KL divergence loss.
-    """
-
+    if teacher_output.size(0) == 0 or student_output.size(0) == 0:
+        print("Skipping KL loss calculation due to zero-length dimension.")
+        return torch.tensor(0.0).to(device) 
     # Ensure valid probability distributions
     teacher_output = torch.clamp(teacher_output, min=1e-7, max=1.0)
     student_output = torch.clamp(student_output, min=1e-7, max=1.0)
@@ -101,16 +124,9 @@ def kl_divergence_loss(teacher_output, student_output, temperature, device, epsi
     # Apply temperature scaling
     teacher_output = teacher_output / temperature
     student_output = student_output / temperature
-
+    
     # Find the minimum length
-    min_length = min(teacher_output.shape[0], student_output.shape[0])
-
-    # Pad shorter tensor with zeros to match the longer tensor
-    teacher_output.to(device), student_output.to(device)
-    if teacher_output.shape[0] < student_output.shape[0]:
-        teacher_output = torch.cat([teacher_output, torch.zeros(student_output.shape[0] - teacher_output.shape[0]).to(device)])
-    elif student_output.shape[0] < teacher_output.shape[0]:
-        student_output = torch.cat([student_output, torch.zeros(teacher_output.shape[0] - student_output.shape[0]).to(device)])
+    student_output, teacher_output =  add_samples(student_output, teacher_output)
 
     # Calculate KL divergence
     kl_loss = torch.sum(teacher_output * torch.log(teacher_output / student_output+epsilon))
@@ -168,15 +184,15 @@ def get_conf(predictions):
             conf = item[0][4]
             confs.append(conf)
     return confs
-
+inx_tmp = 0 
 size = (640, 640)
 trainset = yolo(images, labels, transform, size)
 trainloader = DataLoader(trainset, batch_size=32, shuffle=True, collate_fn=custom_collate_fn, num_workers=4)
 
 cwd = os.getcwd()
 
-student = torch.hub.load('ultralytics/yolov5', 'yolov5n').to(device)  # Student model
-model_path = cwd + '/yolov5x.pt'
+student = torch.hub.load('ultralytics/yolov5', 'yolov5s').to(device)  # Student model
+model_path = cwd + '/yolov5l.pt'
 teacher = torch.load(model_path)['model'].float()
 
 for param in student.parameters():
@@ -191,16 +207,15 @@ teacher.eval()
 # Set training parameters
 epochs = 1500
 lr = 1e-3
-temperature = 1.5
+temperature = 0.07
 nms_threshold = 0.5  # Adjust as needed
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # start training
-def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
-
+def trainer(student, teacher, trainloader, epochs, lr, temperature, device, inx_tmp):
+    inx_tmp = 0
     optimizer = torch.optim.Adam(student.parameters(), lr=lr)
-    loss_list = []
-    weight_cls_loss, weight_bbox_loss = 1e05, 1e02
+    weight_cls_loss, weight_bbox_loss = 1e03, 1e0
 
     for epoch in range(epochs):
         for images, labels in tqdm(trainloader, desc=f"Epoch {epoch + 1}/{epochs}"):
@@ -216,7 +231,8 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
             # Extract raw outputs
             s_predictions = s_output  # Adjust based on actual output format
             t_predictions = t_output[0]  # Modify based on actual output format
-            
+            #print('\n', inx_tmp, '\n')
+            inx_tmp += 1
             # extract/focus predictions after NMS
 
             s_predictions = nms(s_predictions)
@@ -258,7 +274,7 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
             # Log both losses
 
-            wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
+            #wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
 
             student_conf = get_conf(s_predictions)
             teacher_conf = get_conf(t_predictions)
@@ -269,19 +285,19 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device):
 
             # Calculate KL divergence loss
             kl_loss = kl_divergence_loss(student_conf, teacher_conf, temperature,device, epsilon=1e-7)
-            wandb.log({"KL loss": kl_loss})
+            #wandb.log({"KL loss": kl_loss})
             # Total loss
             total_loss = kl_loss + d_loss
-            wandb.log({"Total loss": total_loss})
+            #wandb.log({"Total loss": total_loss})
             #print(f'\rTotal Loss: {total_loss.item():.4f} epoch {epoch}', end='')
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-            loss_list.append(total_loss.cpu().detach().numpy())
+
             if epoch % 25 == 0:
                 torch.save(student, f'{pr_name}_{epoch}_{date}.pt')
                 torch.save(student.state_dict(), f'state_dict_{pr_name}_{epoch}_{date}.pt')
             torch.cuda.empty_cache()
     return student, loss_list
 
-trained_student_model, losses = trainer(student, teacher, trainloader, epochs, lr, temperature, device)
+trained_student_model, losses = trainer(student, teacher, trainloader, epochs, lr, temperature, device,inx_tmp)
