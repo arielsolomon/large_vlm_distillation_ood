@@ -274,7 +274,7 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device, inx_
 
             # Log both losses
 
-            #wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
+            wandb.log({"student_detection_loss_diluted_data_after_nms": d_loss})
 
             student_conf = get_conf(s_predictions)
             teacher_conf = get_conf(t_predictions)
@@ -285,10 +285,10 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device, inx_
 
             # Calculate KL divergence loss
             kl_loss = kl_divergence_loss(student_conf, teacher_conf, temperature,device, epsilon=1e-7)
-            #wandb.log({"KL loss": kl_loss})
+            wandb.log({"KL loss": kl_loss})
             # Total loss
             total_loss = kl_loss + d_loss
-            #wandb.log({"Total loss": total_loss})
+            wandb.log({"Total loss": total_loss})
             #print(f'\rTotal Loss: {total_loss.item():.4f} epoch {epoch}', end='')
             optimizer.zero_grad()
             total_loss.backward()
