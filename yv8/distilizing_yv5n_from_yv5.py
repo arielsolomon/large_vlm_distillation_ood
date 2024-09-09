@@ -62,6 +62,24 @@ def custom_collate_fn(batch):
     images = torch.stack(images, 0)  # Stack images into a single tensor
     return images, labels
 
+def conv_to_fraction(predictions, img_size):
+
+    for ten in predictions:
+    # if tensor is not empty
+        if ten.numel()>0:
+            # if single bounding box
+            if ten.shape[0]>1:
+                for bo in ten:
+                    # normalize according to imgage dimension for values between 0 to 1
+                    box = bo[:4]/img_size
+                    bo[:4] = box
+            # for multiple boxes
+            else:
+                box1 = ten[0][:4]/img_size
+                ten[:,:4]=box1
+        # Moving them to tensor type hald
+    predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in predictions]   
+    return predictions
 
 def add_samples(student_out, teacher_out):
     if teacher_out.size(0) == 0 or student_out.size(0) == 0:
@@ -239,34 +257,8 @@ def trainer(student, teacher, trainloader, epochs, lr, temperature, device, inx_
 
             t_predictions = nms(t_predictions)
 
-            # not elegant but this is so far....
-            for ten in s_predictions:
-                # if tensor is not empty
-                if ten.numel()>0:
-                    # if single bounding box
-                    if ten.shape[0]>1:
-                        for bo in ten:
-                            # normalize according to imgage dimension for values between 0 to 1
-                            box = bo[:4]/img_size
-                            bo[:4] = box
-                    # for multiple boxes
-                    else:
-                        box1 = ten[0][:4]/img_size
-                        ten[:,:4]=box1
-
-            for ten in t_predictions:
-                #same here
-                if ten.numel()>0:
-                    if ten.shape[0]>1:
-                        for bo in ten:
-                            box = bo[:4]/img_size
-                            bo[:4] = box
-                    else:
-                        box1 = ten[0][:4]/img_size
-                        ten[:,:4]=box1
-            # Moving them to tensor type hald
-            s_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in s_predictions]
-            t_predictions = [torch.tensor(pred.to(torch.float16), dtype=torch.float16, requires_grad=True) for pred in t_predictions]
+            s_predictions = conv_to_fraction(s_predictions, img_size)
+            t_predictions = conv_to_fraction(t_predictions, img_size)
             
             # Calculate detection loss after NMS to be weighted regarding KL_divergence loss
             
