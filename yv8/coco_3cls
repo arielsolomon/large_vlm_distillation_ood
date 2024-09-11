@@ -1,0 +1,43 @@
+import os
+import glob
+from shutil import copy
+
+def make_dir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+src = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/coco2017/'
+dst = '/home/user1/ariel/fed_learn/large_vlm_distillation_ood/datasets/coco_3cls/'
+make_dir(dst)
+img_lbl = ['images/','labels/']
+tts = ['train2017/','val2017/']
+
+for il in img_lbl:
+    p1 = dst+il
+    make_dir(p1)
+    for t in tts:
+        p2 = p1+t
+        make_dir(p2)
+
+lbl_path = src+'labels/'
+for t in tts:
+    p4 = lbl_path+t
+    lbls = glob.glob(os.path.join(p4,'*.txt'))
+    for txt in lbls:
+        new_lines = []
+        img_file = txt.replace('.txt','.jpg').replace('labels','images')
+        with open(txt,'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                cls = line.split(' ')[0]
+                if cls in {'0','2','4'}:
+                    new_lines.append(line)
+            if new_lines!=[]:
+                try:
+                    copy(img_file, dst+img_lbl[0]+t)
+                except:
+                    print(f'\nFile not found error\n')
+                    pass
+                with open(txt.replace('coco2017','coco_3cls'), 'w') as ff:
+                    for line in new_lines:
+                        ff.write(line)
